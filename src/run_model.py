@@ -380,7 +380,12 @@ def run_predictions(
             X_aggregated = X_aggregated.drop([COL_NAME_DAILY_MEGAJOULES_ELEC, COL_NAME_DAILY_MEGAJOULES_GAS], axis=1)
         # Merge the processed building data used for training with the preprocessed building data
         if buildings_df is None:
-            buildings_df, _ = preprocessing.process_building_files_batch(input_model.building_params_folder, "", "", running_process.lower() == config.Settings().APP_CONFIG.ENERGY)
+            if api_mode and building_data_dict is not None:
+                # In API mode, use the building_data_dict that was passed in
+                buildings_df, _ = preprocessing.process_building_files_batch(None, "", "", running_process.lower() == config.Settings().APP_CONFIG.ENERGY, building_data_dict=building_data_dict)
+            else:
+                # In CLI mode, use the folder path
+                buildings_df, _ = preprocessing.process_building_files_batch(input_model.building_params_folder, "", "", running_process.lower() == config.Settings().APP_CONFIG.ENERGY)
         X_aggregated = pd.merge(X_aggregated, buildings_df, on='Prediction Identifier', how='left')
         # Output the predictions alongside any relevant information
         # --- MODIFICATION START ---
