@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Research Platform</title>
+    
+    <!-- Using the Tailwind CSS CDN for simplicity. For production, you should use a compiled CSS file. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide icons for icons like login, database, etc. -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <div class="min-h-screen">
+      <!-- Header -->
+      <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <nav class="max-w-7xl mx-auto px-6 py-4">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
+                <i data-lucide="database" class="w-5 h-5 text-white"></i>
+              </div>
+              <div>
+                <h1 class="text-xl font-semibold text-gray-900">Surrogate Model v3.17</h1>
+                <p class="text-sm text-gray-600 hidden sm:block">ML Research Platform</p>
+              </div>
+            </div>
+            
+            <!-- Conditional Login/Logout Button -->
+            {% if user %}
+              <div class="flex items-center space-x-4">
+                <span class="text-gray-700 hidden sm:block">Welcome, {{ user.get('email', 'User') }}!</span>
+                <a href="/auth/logout" class="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200">
+                  <i data-lucide="log-out" class="w-4 h-4"></i>
+                  <span>Logout</span>
+                </a>
+              </div>
+            {% else %}
+              <a 
+                href="{{ cognito_login_url }}" 
+                class="flex items-center space-x-2 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded transition-colors duration-200"
+              >
+                <i data-lucide="log-in" class="w-4 h-4"></i>
+                <span>Access System</span>
+              </a>
+            {% endif %}
+
+          </div>
+        </nav>
+      </header>
+
+      <!-- Main Content -->
+      <main>
+        <!-- Hero Section -->
+        <section class="bg-white">
+            <div class="max-w-7xl mx-auto px-6 py-20 text-center">
+                <h1 class="text-4xl md:text-6xl font-bold text-gray-900 leading-tight">Instant Energy & Cost Predictions for Building Designs</h1>
+                <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">ML surrogate-model API delivers EUI and cost estimates. Trained on EnergyPlus scenarios and optimized for early-stage design.</p>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="py-16 sm:py-20">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="text-left">
+                    <h2 class="text-4xl font-bold text-gray-900">BTAP Surrogate Model</h2>
+                    <p class="mt-3 text-lg text-gray-600 max-w-2xl">
+                      Advances in clean technologies and building practices can make new buildings “net-zero energy”, meaning they require so little energy they could potentially rely on their own renewable energy supplies for all of their energy needs.                      
+                    </p>
+                    <p class="mt-3 text-lg text-gray-600 max-w-2xl">
+                      Through research and development, technology costs continue to fall, and government and industry efforts and investments will accelerate that trend. These advances, supported by a model “net-zero energy ready” building code, will enable all builders to adopt these practices and lower lifecycle costs for homeowners.’
+                    </p>
+                    <p class="mt-3 text-lg text-gray-600 max-w-2xl">
+                      The goal is to develop surrogate models that generate data to inform in the design of near-net-zero energy buildings in Canada.
+                    </p>
+                </div>
+                
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Feature Card 1 -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-8 text-center transition-transform transform hover:-translate-y-2">
+                        <span class="text-5xl mb-4 inline-block"></span>
+                        <h3 class="text-xl font-semibold text-gray-900">Instant Energy Use Predictions</h3>
+                        <p class="mt-2 text-gray-600">
+                            Get EnergyPlus-level EUI estimates in milliseconds using machine-learning surrogate models trained on 2,000+ design scenarios.
+                        </p>
+                    </div>
+
+                    <!-- Feature Card 2 -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-8 text-center transition-transform transform hover:-translate-y-2">
+                        <span class="text-5xl mb-4 inline-block"></span>
+                        <h3 class="text-xl font-semibold text-gray-900">Integrated Cost Estimation</h3>
+                        <p class="mt-2 text-gray-600">
+                            Predict envelope, HVAC, lighting, and equipment costs instantly—powered by BTAP-Costing and ML-driven regression models.
+                        </p>
+                    </div>
+
+                    <!-- Feature Card 3 -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-8 text-center transition-transform transform hover:-translate-y-2">
+                        <span class="text-5xl mb-4 inline-block"></span>
+                        <h3 class="text-xl font-semibold text-gray-900">Explainability & Sensitivity Insights</h3>
+                        <p class="mt-2 text-gray-600">
+                            Understand model behavior with SHAP explainability and run parametric analyses to explore how design changes affect outcomes.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+      <section class="bg-gray-800 text-white py-16 sm:py-20">
+          <div class="max-w-7xl mx-auto px-6 text-center">
+              <h2 class="text-4xl font-bold">Why Use Our Surrogate Models?</h2>
+              <div class="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-8">
+
+                  <div class="stat-item">
+                      <h3 class="text-2xl font-bold text-cyan-400">Simulation-Level Accuracy</h3>
+                      <p class="mt-2 text-gray-300">
+                          Achieve R² values above 0.9 for both energy and cost predictions.
+                      </p>
+                  </div>
+
+                  <div class="stat-item">
+                      <h3 class="text-2xl font-bold text-cyan-400">Lightning-Fast Execution</h3>
+                      <p class="mt-2 text-gray-300">
+                          Generate predictions up to 340× faster than full EnergyPlus runs.
+                      </p>
+                  </div>
+
+                  <div class="stat-item">
+                      <h3 class="text-2xl font-bold text-cyan-400">Built-In Explainability</h3>
+                      <p class="mt-2 text-gray-300">
+                          SHAP-driven insights reveal which design parameters matter most.
+                      </p>
+                  </div>
+
+                  <div class="stat-item">
+                      <h3 class="text-2xl font-bold text-cyan-400">Design-Stage Ready</h3>
+                      <p class="mt-2 text-gray-300">
+                          Ideal for early-stage workflows where rapid iteration is critical.
+                      </p>
+                  </div>
+              </div>
+          </div>
+      </section>
+
+
+        <!-- CTA Section 
+        <section class="py-16 sm:py-24">
+            <div class="max-w-7xl mx-auto px-6 text-center">
+                <h2 class="text-4xl font-bold text-gray-900">Ready to Optimize Your Energy Future?</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Join thousands of organizations already using our ML platform to reduce costs and environmental impact.</p>
+                <div class="mt-8">
+                    <a href="#" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-colors">
+                        Get Started with Free Trial
+                    </a>
+                </div>
+            </div>
+        </section>
+        -->
+
+      </main>
+
+      <!-- Footer -->
+      <footer class="bg-white border-t border-gray-200">
+        <div class="max-w-7xl mx-auto px-6 py-6">
+          <div class="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-600">
+            <div class="mb-2 sm:mb-0">NRCan ML Research Platform</div>
+            <div>Research Use Only • Contact: support</div>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      // Renders the icons after the page loads
+      lucide.createIcons();
+    </script>
+</body>
+</html>
