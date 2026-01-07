@@ -65,11 +65,12 @@ app = FastAPI(
     }
 )
 
-# Add CORS middleware to allow requests from GitHub Pages
+# Add CORS middleware to allow requests from GitHub Pages and AWS Amplify
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://navidshh.github.io",
+        "https://main.d13kp0x3kfwupp.amplifyapp.com",
         "http://localhost:8080",
         "http://localhost:8000"
     ],
