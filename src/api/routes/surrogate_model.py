@@ -12,6 +12,7 @@ from ..api_config import settings
 from ..rate_limit_config import REQUEST_LIMIT_CONFIG, CONCURRENCY_QUOTAS
 
 from run_model import run_predictions  # will not trigger Typer CLI
+from model_selector import get_config_for_model, extract_location_from_epw
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from ..auth.dependency_functions import get_current_user
@@ -97,7 +98,7 @@ async def upload_file(
 
 @router.post("/run-model-s3")
 async def run_model_endpoint_s3(
-    config_file: str = Form(..., description="Configuration file name for the ML model"),
+    config_file: Optional[str] = Form(None, description="Configuration file name (auto-selected if not provided)"),
     email: Optional[str] = Form(None, description="Optional user email address")
 ):
     try:
@@ -128,6 +129,26 @@ async def run_model_endpoint_s3(
                 raise HTTPException(status_code=500, detail=f"S3 download error: {str(e)}")
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Error reading input file from S3: {str(e)}")
+
+        # Auto-select config file based on building type and location from the input data
+        if not config_file or config_file == "input_config.yml":
+            # Extract building type and location from the dataframe
+            building_type = df.get('bldg_standards_building_type', pd.Series([None])).iloc[0]
+            epw_file = df.get(':epw_file', pd.Series([None])).iloc[0]
+            
+            if not building_type or not epw_file:
+                # Try alternate column names
+                building_type = building_type or df.get(':building_type', pd.Series([None])).iloc[0]
+                epw_file = epw_file or df.get('epw_file', pd.Series([None])).iloc[0]
+            
+            if building_type and epw_file:
+                location = extract_location_from_epw(str(epw_file))
+                config_file = get_config_for_model(str(building_type), location)
+                logger.info(f"Auto-selected config: {config_file} for {building_type} in {location}")
+            else:
+                # Fallback to default
+                config_file = "input_config_midrise_toronto.yml"
+                logger.warning(f"Could not extract building type or location. Using default: {config_file}")
 
         # Prepare dfs dict (compatible with original: key is filename)
         dfs = {input_filename: df}

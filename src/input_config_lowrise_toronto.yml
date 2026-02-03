@@ -1,0 +1,35 @@
+# Configuration for Lowrise in Toronto
+random_seed: 7
+selected_model_type: 'gb'
+
+building_param_files: [
+  'elec_output.xlsx',
+  "gas_output.xlsx"
+]
+energy_param_files: [
+  'Calgary_LargeO_Elec_merged.csv',
+  "Calgary_LargeO_NG_merged.csv"
+]
+val_building_param_file: ''
+val_energy_param_file: ''
+estimator_type: ''
+
+batch_building_inputs: 'Test'
+simulation_start_date: '1-1'
+simulation_end_date: '12-31'
+
+# Energy files for Lowrise - Toronto
+energy_trained_model_file: '/home/btap_ml/input/training_model_2025-03-21 15-16-19.288272 - Lowrise/gb/energy/model_training/trained_model_gb.joblib'
+energy_ohe_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\energy\ohe.pkl'
+energy_cleaned_columns_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\energy\cleaned_columns.json'
+energy_scaler_X_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\energy\model_training\scaler_X.pkl'
+energy_scaler_y_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\energy\model_training\scaler_y.pkl'
+energy_features_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\energy\feature_selection\feature_selection.json'
+
+# Costing files for Lowrise - Toronto
+costing_trained_model_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\costing\model_training\trained_model_gb.joblib'
+costing_ohe_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\costing\ohe.pkl'
+costing_cleaned_columns_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\costing\cleaned_columns.json'
+costing_scaler_X_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\costing\model_training\scaler_X.pkl'
+costing_scaler_y_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\costing\model_training\scaler_y.pkl'
+costing_features_file: '\input\training_model_2025-03-21 15-16-19.288272 - Lowrise\gb\costing\feature_selection\feature_selection.json'
