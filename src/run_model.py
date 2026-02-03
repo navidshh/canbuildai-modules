@@ -188,6 +188,7 @@ def run_predictions(
     COL_NAME_AGGREGATED_GIGAJOULES_GAS = "Predicted Gas Energy Total (Gigajoules per square meter)"
     COL_NAME_TOTAL_COSTING = "Predicted Total Costing (per square meter)"
 
+    cfg = None  # Initialize cfg
     if len(config_file) > 0:
         #load_and_validate_config(config_file)
         logger.info("BSUP Config file path: %s", DOCKER_INPUT_PATH + config_file)
@@ -196,6 +197,8 @@ def run_predictions(
             logger.info("BSUP Config loaded: %s", cfg)
         except Exception as e:
             logger.error("BSUP Failed to load config: %s", str(e))
+            raise Exception(f"Failed to load configuration file: {str(e)}")
+        
         # Load the energy training files
         if energy_model_file == "": energy_model_file = cfg.get(settings.APP_CONFIG.ENERGY_PREFIX + settings.APP_CONFIG.TRAINED_MODEL_FILE)
         if energy_ohe_file == "": energy_ohe_file = cfg.get(settings.APP_CONFIG.ENERGY_PREFIX + settings.APP_CONFIG.OHE_FILE)
@@ -217,6 +220,8 @@ def run_predictions(
         if start_date == "": start_date = cfg.get(config.Settings().APP_CONFIG.SIMULATION_START_DATE)
         if end_date == "": end_date = cfg.get(config.Settings().APP_CONFIG.SIMULATION_END_DATE)
         if selected_model_type == "": selected_model_type = cfg.get(config.Settings().APP_CONFIG.SELECTED_MODEL_TYPE)
+    else:
+        raise Exception("Configuration file path is required")
 
     # Identify the training processes to be taken (energy and/or costing)
     RUNNING_PROCESSES = [config.Settings().APP_CONFIG.ENERGY,
