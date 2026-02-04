@@ -367,6 +367,26 @@ async def process_user_model(
         dfs = {input_filename: df}
 
         # ---------------------------------------------------
+        # 1.5 Auto-detect building type and location from the dataframe
+        # ---------------------------------------------------
+        # Extract building type and location from the dataframe
+        building_type = df.get('bldg_standards_building_type', pd.Series([None])).iloc[0]
+        epw_file = df.get(':epw_file', pd.Series([None])).iloc[0]
+        
+        if not building_type or not epw_file:
+            # Try alternate column names
+            building_type = building_type or df.get(':building_type', pd.Series([None])).iloc[0]
+            epw_file = epw_file or df.get('epw_file', pd.Series([None])).iloc[0]
+        
+        if building_type and epw_file:
+            location = extract_location_from_epw(str(epw_file))
+            config_file = get_config_for_model(str(building_type), location)
+            logger.info(f"Auto-selected config: {config_file} for {building_type} in {location}")
+        else:
+            # Use provided config_file or fallback to default
+            logger.warning(f"Could not extract building type or location. Using provided config: {config_file}")
+
+        # ---------------------------------------------------
         # 2. Run model predictions
         # ---------------------------------------------------
         try:
