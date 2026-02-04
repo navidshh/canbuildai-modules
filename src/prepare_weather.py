@@ -37,12 +37,29 @@ def get_weather_df_from_zip(epw_filename: str) -> pd.DataFrame:
                    'presweathobs', 'presweathcodes', 'precip_wtr', 'aerosol_opt_depth', 'snowdepth', 'days_last_snow',
                    'Albedo', 'liq_precip_depth', 'liq_precip_rate']
 
-    zip_url = f"{epw_file_store}/{epw_filename}.zip"
-    logger.info("Downloading zip file from %s", zip_url)
-    response = requests.get(zip_url, verify=False)
-    response.raise_for_status()
+    # Check for local file first (in src directory or input/weather directory)
+    local_paths = [
+        Path(__file__).parent / f"{epw_filename}.zip",  # Check in src directory
+        Path(__file__).parent.parent / "input" / "weather" / f"{epw_filename}.zip",  # Check in input/weather
+    ]
+    
+    zip_data = None
+    for local_path in local_paths:
+        if local_path.exists():
+            logger.info("Found local weather file at %s", local_path)
+            with open(local_path, 'rb') as f:
+                zip_data = f.read()
+            break
+    
+    # If not found locally, try to download from remote URL
+    if zip_data is None:
+        zip_url = f"{epw_file_store}/{epw_filename}.zip"
+        logger.info("Downloading zip file from %s", zip_url)
+        response = requests.get(zip_url, verify=False)
+        response.raise_for_status()
+        zip_data = response.content
 
-    with zipfile.ZipFile(BytesIO(response.content)) as z:
+    with zipfile.ZipFile(BytesIO(zip_data)) as z:
         expected_filename = epw_filename + ".epw"
         if expected_filename not in z.namelist():
             raise FileNotFoundError(f"{expected_filename} not found in the zip archive.")
