@@ -47,9 +47,7 @@ jobs:
           context: .
           file: ./Dockerfile.aws
           push: true
-          # This correctly uses the Git tag (e.g., "v1.2.0") as the Docker tag
-          # tags: $ {{ secrets.DOCKER_USERNAME }}/$ {{ github.event.repository.name }}:$ {{ github.ref_name }}
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.tag.outputs.value }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/surrogate-app:${{ steps.tag.outputs.value }}
 
   deploy-to-ecs:
     runs-on: ubuntu-latest
@@ -84,8 +82,7 @@ jobs:
           TASK_FAMILY=${{ secrets.ECS_TASK_FAMILY }}      
 
           # This directly gets the tag that triggered the workflow (e.g., "1.1.4")
-          # NEW_IMAGE_URI="$ {{ secrets.DOCKER_USERNAME }}/$ {{ github.event.repository.name }}:$ {{ github.ref_name }}"
-          NEW_IMAGE_URI="${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ steps.tag.outputs.value }}"
+          NEW_IMAGE_URI="${{ secrets.DOCKER_USERNAME }}/surrogate-app:${{ steps.tag.outputs.value }}"
 
           echo "Deploying new image to ECS: $NEW_IMAGE_URI"
           
