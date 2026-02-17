@@ -23,7 +23,7 @@ import logging
 import boto3
 from .api_config import settings
 from typing import Optional, Dict, Any, List
-from .routes import auth, tests, maintenance, surrogate_model
+from .routes import auth, tests, maintenance, surrogate_model, retrofit_prediction
 from .auth.cognito import get_cognito_login_url
 from .auth.dependency_functions import get_current_user, get_current_token, get_api_user
 from .redis_client import init_redis, close_redis
@@ -57,7 +57,9 @@ async def lifespan(app: FastAPI):
 # app = FastAPI(lifespan=lifespan)
 app = FastAPI(
     lifespan=lifespan,
-    title="Surrogate Model API",
+    title="CanBuildAI Multi-Model API",
+    description="Unified API for Surrogate Model and Retrofit Planner modules",
+    version="2.0.0",
     swagger_ui_init_oauth={
         "clientId": settings.COGNITO_APP_PUBLIC_CLIENT_ID,
         "scopes": {"openid"},
@@ -86,6 +88,9 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "static"))
 # Register routers
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(tests.router, prefix="/tests", tags=["Test"])
+
+# Register Retrofit Planner routes
+app.include_router(retrofit_prediction.router, prefix="/retrofit", tags=["Retrofit Planner"])
 app.include_router(maintenance.router, prefix="/maintenance", tags=["Redis Maintenance"])
 app.include_router(surrogate_model.router, prefix="/surrogate_model", tags=["Surrogate Model"])
 

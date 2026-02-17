@@ -16,14 +16,20 @@ WORKDIR /home/btap_ml
 
 COPY requirements.txt ./
 COPY src ./src
+COPY input ./input
+
+# Copy New Model (Retrofit Planner) files
+COPY "New Model/src" ./New_Model/src/
+COPY "New Model/data" ./New_Model/data/
+COPY "New Model/output" ./New_Model/output/
 
 RUN pip install setuptools==65.5.1 packaging==21.3
 RUN pip install -r requirements.txt
 
-RUN mkdir output
-RUN mkdir input
-
-COPY input ./input
+RUN mkdir -p output
+RUN mkdir -p input
+RUN mkdir -p New_Model/output/models
+RUN mkdir -p New_Model/data
 WORKDIR /home/btap_ml/src
 
 RUN pip3 install "pydantic[dotenv]"
