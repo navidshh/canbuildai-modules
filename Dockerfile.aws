@@ -21,7 +21,6 @@ COPY input ./input
 # Copy New Model (Retrofit Planner) files using array syntax
 COPY ["New Model/src", "./New_Model/src/"]
 COPY ["New Model/data", "./New_Model/data/"]
-COPY ["New Model/output", "./New_Model/output/"]
 
 RUN pip install setuptools==65.5.1 packaging==21.3
 RUN pip install -r requirements.txt
