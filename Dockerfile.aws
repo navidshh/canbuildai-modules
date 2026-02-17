@@ -24,9 +24,10 @@ RUN pip install -r requirements.txt
 # Create directory structure for both modules
 RUN mkdir -p output
 RUN mkdir -p input
-RUN mkdir -p New_Model/src
-RUN mkdir -p New_Model/data
-RUN mkdir -p New_Model/output/models
+
+# Copy New Model directory if available (from git submodule)
+COPY ["New Model", "./New_Model"]
+
 WORKDIR /home/btap_ml/src
 
 RUN pip3 install "pydantic[dotenv]"
