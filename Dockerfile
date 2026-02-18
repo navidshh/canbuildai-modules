@@ -24,6 +24,7 @@ RUN mkdir output
 RUN mkdir input
 
 COPY input ./input
+COPY retrofit_planner ./retrofit_planner
 
 WORKDIR /home/btap_ml/src
 
