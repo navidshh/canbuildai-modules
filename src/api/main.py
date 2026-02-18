@@ -59,7 +59,7 @@ app = FastAPI(
     lifespan=lifespan,
     title="CanBuildAI Multi-Model API",
     description="Unified API for Surrogate Model and Retrofit Planner modules",
-    version="2.0.0",
+    version="2.2.0",
     swagger_ui_init_oauth={
         "clientId": settings.COGNITO_APP_PUBLIC_CLIENT_ID,
         "scopes": {"openid"},
