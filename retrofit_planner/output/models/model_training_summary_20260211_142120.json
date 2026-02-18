@@ -1,0 +1,40 @@
+{
+  "timestamp": "20260211_142120",
+  "data_shape": [
+    57019,
+    50
+  ],
+  "train_size": 45615,
+  "test_size": 11404,
+  "num_features": 48,
+  "num_categorical": 16,
+  "num_numerical": 32,
+  "models_trained": [
+    "RandomForest",
+    "GradientBoosting",
+    "XGBoost",
+    "LightGBM",
+    "CatBoost"
+  ],
+  "best_model": {
+    "model_name": "XGBoost",
+    "metrics": {
+      "energy": {
+        "train_rmse": 0.13311746618356077,
+        "test_rmse": 0.5417639538142309,
+        "train_mae": 0.06070085558922577,
+        "test_mae": 0.0888905390715514,
+        "train_r2": 0.9997532723737087,
+        "test_r2": 0.996165116473341
+      },
+      "emissions": {
+        "train_rmse": 3503.6054691514178,
+        "test_rmse": 27462.990223342462,
+        "train_mae": 1499.3325838595815,
+        "test_mae": 2368.3863363216547,
+        "train_r2": 0.9999357966121869,
+        "test_r2": 0.9955811150831418
+      }
+    }
+  }
+}

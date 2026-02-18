@@ -1,0 +1,52 @@
+================================================================================
+COMSTOCK ENSEMBLE MODEL TRAINING REPORT
+================================================================================
+
+Training Date: 2026-02-11 14:21:20
+
+DATA SUMMARY
+--------------------------------------------------------------------------------
+Total samples: 57,019
+Total features: 48
+  - Categorical: 16
+  - Numerical: 32
+Training samples: 45,615
+Test samples: 11,404
+
+BEST MODEL (Multi-Target)
+--------------------------------------------------------------------------------
+Model: XGBoost
+
+Energy Consumption Intensity:
+  Train R²: 0.9998
+  Test R²: 0.9962
+  Test RMSE: 0.5418
+  Test MAE: 0.0889
+
+CO2 Emissions:
+  Train R²: 0.9999
+  Test R²: 0.9956
+  Test RMSE: 27462.9902
+  Test MAE: 2368.3863
+
+ALL MODEL COMPARISON
+--------------------------------------------------------------------------------
+
+Energy Consumption Intensity:
+Model                Test R²      Test RMSE   
+------------------------------------------------------------
+RandomForest         0.9831       1.14        
+GradientBoosting     0.9957       0.58        
+XGBoost              0.9962       0.54        
+LightGBM             0.9942       0.66        
+CatBoost             0.9624       1.70        
+
+CO2 Emissions:
+Model                Test R²      Test RMSE   
+------------------------------------------------------------
+RandomForest         0.9949       29590.14    
+GradientBoosting     0.9959       26510.91    
+XGBoost              0.9956       27462.99    
+LightGBM             0.9956       27291.83    
+CatBoost             0.9947       29983.66    
+

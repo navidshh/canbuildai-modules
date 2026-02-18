@@ -19,14 +19,14 @@ from pydantic import BaseModel, Field
 # Add parent directory to path to import prediction module
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
-# Import the predictor class from New Model
+# Import the predictor class from retrofit_planner
 try:
-    model_path = Path(__file__).parent.parent.parent.parent / "New Model" / "src"
+    model_path = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "src"
     sys.path.insert(0, str(model_path))
     from predict_with_ensemble import EnsemblePredictor
     
-    # Look for models in the New Model directory
-    models_dir = Path(__file__).parent.parent.parent.parent / "New Model" / "output" / "models"
+    # Look for models in the retrofit_planner directory
+    models_dir = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "output" / "models"
     predictor = EnsemblePredictor(models_dir=str(models_dir))
     
     # Load the models during initialization
@@ -372,7 +372,7 @@ async def download_template():
     """
     try:
         # Path to actual input_data.csv template
-        input_data_path = Path(__file__).parent.parent.parent.parent / "New Model" / "data" / "input_data.csv"
+        input_data_path = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "data" / "input_data.csv"
         
         if input_data_path.exists():
             # Read the template file
@@ -419,7 +419,7 @@ async def get_models_info():
             detail="Models not loaded"
         )
     
-    models_dir = Path(__file__).parent.parent.parent.parent / "New Model" / "output" / "models"
+    models_dir = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "output" / "models"
     
     if not models_dir.exists():
         return {
@@ -459,7 +459,7 @@ async def health_check():
     import psutil
     
     # Check if models are available
-    models_dir = Path(__file__).parent.parent.parent.parent / "New Model" / "output" / "models"
+    models_dir = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "output" / "models"
     models_loaded = models_dir.exists() and len(list(models_dir.glob("*.pkl"))) > 0
     
     # Get system information
