@@ -20,18 +20,46 @@ from pydantic import BaseModel, Field
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 # Import the predictor class from retrofit_planner
+predictor = None
+MODEL_AVAILABLE = False
+
 try:
-    model_path = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "src"
+    # Determine the base directory (where the Dockerfile sets WORKDIR to /home/btap_ml/src)
+    base_dir = Path(__file__).parent.parent.parent.parent  # Go up from routes/retrofit_prediction.py to /home/btap_ml
+    
+    # Add retrofit_planner/src to path
+    model_path = base_dir / "retrofit_planner" / "src"
     sys.path.insert(0, str(model_path))
+    
     from predict_with_ensemble import EnsemblePredictor
     
     # Look for models in the retrofit_planner directory
-    models_dir = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "output" / "models"
-    predictor = EnsemblePredictor(models_dir=str(models_dir))
-    predictor.load_latest_models()  # Load the trained models
-    MODEL_AVAILABLE = True
+    models_dir = base_dir / "retrofit_planner" / "output" / "models"
+    
+    print(f"Attempting to load retrofit planner models from: {models_dir}")
+    print(f"Models directory exists: {models_dir.exists()}")
+    
+    if models_dir.exists():
+        try:
+            predictor = EnsemblePredictor(models_dir=str(models_dir))
+            predictor.load_latest_models()
+            MODEL_AVAILABLE = True
+            print("✓ Retrofit planner models loaded successfully")
+        except Exception as load_error:
+            print(f"Error loading models: {load_error}")
+            import traceback
+            traceback.print_exc()
+            predictor = None
+            MODEL_AVAILABLE = False
+    else:
+        print(f"Models directory not found at: {models_dir}")
+        predictor = None
+        MODEL_AVAILABLE = False
+        
 except Exception as e:
-    print(f"Warning: Could not load retrofit predictor: {e}")
+    print(f"Warning: Could not initialize retrofit predictor: {e}")
+    import traceback
+    traceback.print_exc()
     predictor = None
     MODEL_AVAILABLE = False
 
@@ -251,6 +279,13 @@ async def upload_and_predict(file: UploadFile = File(...)):
         energy_col = 'out.site_energy.total.energy_consumption_intensity'
         ghg_col = 'calc.emissions.total_with_cambium_mid_case_15y..co2e_kg'
         
+        # Check if predictor is available
+        if predictor is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Model not loaded. Please check /retrofit/status endpoint for diagnostics."
+            )
+        
         # Make predictions using the trained model
         try:
             # Use the predictor to make predictions on the entire dataframe
@@ -425,14 +460,34 @@ async def get_models_info():
 @router.get("/status")
 async def prediction_service_status():
     """
-    Get status of the prediction service
+    Get status of the prediction service with detailed diagnostics
     """
+    base_dir = Path(__file__).parent.parent.parent.parent
+    models_dir = base_dir / "retrofit_planner" / "output" / "models"
+    src_dir = base_dir / "retrofit_planner" / "src"
+    
+    # Check what files exist
+    model_files = []
+    if models_dir.exists():
+        model_files = [f.name for f in models_dir.glob("*.pkl")]
+    
     return {
         "service": "retrofit_prediction",
         "status": "operational" if MODEL_AVAILABLE else "models_not_loaded",
         "models_available": MODEL_AVAILABLE,
-        "timestamp": datetime.utcnow().isoformat()
+        "predictor_initialized": predictor is not None,
+        "timestamp": datetime.utcnow().isoformat(),
+        "debug_info": {
+            "base_dir": str(base_dir),
+            "models_dir": str(models_dir),
+            "models_dir_exists": models_dir.exists(),
+            "src_dir": str(src_dir),
+            "src_dir_exists": src_dir.exists(),
+            "model_files_found": model_files,
+            "current_file": str(Path(__file__)),
+        }
     }
+
 
 
 @router.get("/health", response_model=HealthResponse)
