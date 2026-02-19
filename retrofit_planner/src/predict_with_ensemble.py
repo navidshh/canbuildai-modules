@@ -14,6 +14,20 @@ import argparse
 import warnings
 warnings.filterwarnings('ignore')
 
+# Import ML libraries needed for unpickling models
+try:
+    import xgboost as xgb
+except ImportError:
+    print("Warning: xgboost not available")
+    xgb = None
+
+try:
+    from sklearn.preprocessing import StandardScaler, LabelEncoder
+except ImportError:
+    print("Warning: sklearn not available")
+    StandardScaler = None
+    LabelEncoder = None
+
 
 class EnsemblePredictor:
     """
