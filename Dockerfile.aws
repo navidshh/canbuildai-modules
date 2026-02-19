@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     git
 
-RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
 
 WORKDIR /home/btap_ml
 
@@ -16,7 +16,6 @@ COPY requirements.txt ./
 COPY src ./src
 COPY input ./input
 
-RUN pip install setuptools==65.5.1 packaging==21.3
 RUN pip install -r requirements.txt
 
 # Create directory structure for both modules
