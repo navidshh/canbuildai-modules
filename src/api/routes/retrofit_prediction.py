@@ -22,6 +22,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 # Import the predictor class from retrofit_planner
 predictor = None
 MODEL_AVAILABLE = False
+STARTUP_ERROR = None  # Store startup error for debugging
 
 try:
     # Determine the base directory (where the Dockerfile sets WORKDIR to /home/btap_ml/src)
@@ -46,20 +47,28 @@ try:
             MODEL_AVAILABLE = True
             print("✓ Retrofit planner models loaded successfully")
         except Exception as load_error:
-            print(f"Error loading models: {load_error}")
+            error_msg = f"Error loading models: {load_error}"
+            print(error_msg)
             import traceback
-            traceback.print_exc()
+            tb = traceback.format_exc()
+            print(tb)
+            STARTUP_ERROR = f"{error_msg}\n\nTraceback:\n{tb}"
             predictor = None
             MODEL_AVAILABLE = False
     else:
-        print(f"Models directory not found at: {models_dir}")
+        error_msg = f"Models directory not found at: {models_dir}"
+        print(error_msg)
+        STARTUP_ERROR = error_msg
         predictor = None
         MODEL_AVAILABLE = False
         
 except Exception as e:
-    print(f"Warning: Could not initialize retrofit predictor: {e}")
+    error_msg = f"Warning: Could not initialize retrofit predictor: {e}"
+    print(error_msg)
     import traceback
-    traceback.print_exc()
+    tb = traceback.format_exc()
+    print(tb)
+    STARTUP_ERROR = f"{error_msg}\n\nTraceback:\n{tb}"
     predictor = None
     MODEL_AVAILABLE = False
 
@@ -477,6 +486,7 @@ async def prediction_service_status():
         "models_available": MODEL_AVAILABLE,
         "predictor_initialized": predictor is not None,
         "timestamp": datetime.utcnow().isoformat(),
+        "startup_error": STARTUP_ERROR if STARTUP_ERROR else None,
         "debug_info": {
             "base_dir": str(base_dir),
             "models_dir": str(models_dir),
