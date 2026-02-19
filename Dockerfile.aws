@@ -1,7 +1,6 @@
 FROM tensorflow/tensorflow:2.15.0
 
 RUN apt-get update && apt-get install -y \
-    python3.9 \
     python3-pip \
     build-essential \
     libssl-dev \
@@ -9,8 +8,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     git
 
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.8 1
-RUN python -m pip install --no-cache-dir --upgrade pip setuptools
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools
 
 WORKDIR /home/btap_ml
 
