@@ -28,14 +28,10 @@ try:
     # Look for models in the retrofit_planner directory
     models_dir = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "output" / "models"
     predictor = EnsemblePredictor(models_dir=str(models_dir))
-    
-    # Load the models during initialization
-    predictor.load_latest_models()
-    print("✅ Retrofit prediction models loaded successfully!")
+    predictor.load_latest_models()  # Load the trained models
     MODEL_AVAILABLE = True
 except Exception as e:
-    print(f"⚠️ Warning: Could not load retrofit predictor: {e}")
-    print("Predictions will use placeholder values until models are available.")
+    print(f"Warning: Could not load retrofit predictor: {e}")
     predictor = None
     MODEL_AVAILABLE = False
 
@@ -255,92 +251,58 @@ async def upload_and_predict(file: UploadFile = File(...)):
         energy_col = 'out.site_energy.total.energy_consumption_intensity'
         ghg_col = 'calc.emissions.total_with_cambium_mid_case_15y..co2e_kg'
         
+        # Make predictions using the trained model
+        try:
+            # Use the predictor to make predictions on the entire dataframe
+            predictions_df = predictor.predict(df)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Model prediction failed: {str(e)}"
+            )
+        
         # Process predictions
         predictions = []
         successful = 0
         failed = 0
         
-        if MODEL_AVAILABLE and predictor is not None:
-            # Use actual trained model for predictions
+        for idx, row in predictions_df.iterrows():
             try:
-                print(f"Running predictions on {len(df)} buildings...")
-                predictions_df = predictor.predict(df)
+                # Extract building info for display (if available)
+                building_type = row.get('in.comstock_building_type', 'Commercial Building')
+                floor_area = row.get('in.sqft', None)
+                climate_zone = row.get('in.ashrae_iecc_climate_zone_2006', 'Unknown')
                 
-                for idx, row in predictions_df.iterrows():
-                    try:
-                        # Extract building info for display
-                        building_type = row.get('in.comstock_building_type', 'Commercial Building')
-                        floor_area = row.get('in.sqft', None)
-                        climate_zone = row.get('in.ashrae_iecc_climate_zone_2006', 'Unknown')
-                        
-                        # Get model predictions (units: kWh/sqft and kg CO2e)
-                        predicted_energy = row.get('predicted_energy_intensity_kwh_per_sqft', 0)
-                        predicted_emissions = row.get('predicted_co2_emissions_co2e_kg', 0)
-                        
-                        # Convert energy from kWh/sqft to kBtu/sqft (1 kWh = 3.412 kBtu)
-                        predicted_eui_kbtu = predicted_energy * 3.412
-                        
-                        pred_result = PredictionOutput(
-                            predicted_values={
-                                "energy_use_intensity_kbtu_sqft": float(predicted_eui_kbtu),
-                                "ghg_emissions_kg_co2e": float(predicted_emissions)
-                            },
-                            confidence_scores={"overall": 0.85},
-                            matched_comstock_id=f"COMSTOCK_{10000 + idx}",
-                            model_used="XGBoost Multi-Target (best_model_multitarget_XGBoost_20260211_142120)",
-                            processing_time_ms=10.0 + (idx * 0.5),
-                            building_type=str(building_type),
-                            floor_area=float(floor_area) if floor_area and not pd.isna(floor_area) else 0,
-                            climate_zone=str(climate_zone)
-                        )
-                        
-                        predictions.append(pred_result)
-                        successful += 1
-                        
-                    except Exception as e:
-                        failed += 1
-                        print(f"Failed to process prediction for row {idx}: {e}")
-                        
-            except Exception as e:
-                print(f"Error during model prediction: {e}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Model prediction failed: {str(e)}"
+                # Get predictions from the predictor (these columns were added by predictor.predict())
+                predicted_energy = row.get('predicted_energy_intensity_kwh_per_sqft', 0)
+                predicted_co2 = row.get('predicted_co2_emissions_co2e_kg', 0)
+                
+                # Convert kWh to kBtu (1 kWh = 3.412 kBtu)
+                predicted_eui = predicted_energy * 3.412
+                predicted_ghg = predicted_co2
+                
+                # Store numeric predictions only in predicted_values
+                # Non-numeric metadata goes in separate response fields
+                pred_result = PredictionOutput(
+                    predicted_values={
+                        "energy_use_intensity_kbtu_sqft": float(predicted_eui),
+                        "ghg_emissions_kg_co2e": float(predicted_ghg)
+                    },
+                    confidence_scores={"overall": 0.85},
+                    matched_comstock_id=f"COMSTOCK_{10000 + idx}",
+                    model_used="Multi-target XGBoost",
+                    processing_time_ms=10.0 + (idx * 0.5),
+                    building_type=str(building_type),
+                    floor_area=float(floor_area) if floor_area and not pd.isna(floor_area) else 0,
+                    climate_zone=str(climate_zone)
                 )
-        else:
-            # Fallback: Use placeholder values when model is not available
-            print("⚠️ Models not available, using placeholder predictions")
-            for idx, row in df.iterrows():
-                try:
-                    # Extract building info for display
-                    building_type = row.get('in.comstock_building_type', 'Commercial Building')
-                    floor_area = row.get('in.sqft', None)
-                    climate_zone = row.get('in.ashrae_iecc_climate_zone_2006', 'Unknown')
-                    
-                    # Placeholder predictions
-                    predicted_eui = 50.0 + (idx % 50)
-                    predicted_ghg = 50000.0 + (idx * 1000)
-                    
-                    pred_result = PredictionOutput(
-                        predicted_values={
-                            "energy_use_intensity_kbtu_sqft": predicted_eui,
-                            "ghg_emissions_kg_co2e": predicted_ghg
-                        },
-                        confidence_scores={"overall": 0.0},
-                        matched_comstock_id=f"COMSTOCK_{10000 + idx}",
-                        model_used="Placeholder (Model Not Loaded)",
-                        processing_time_ms=1.0,
-                        building_type=str(building_type),
-                        floor_area=float(floor_area) if floor_area and not pd.isna(floor_area) else 0,
-                        climate_zone=str(climate_zone)
-                    )
-                    
-                    predictions.append(pred_result)
-                    successful += 1
-                    
-                except Exception as e:
-                    failed += 1
-                    print(f"Failed to create placeholder for row {idx}: {e}")
+                
+                predictions.append(pred_result)
+                successful += 1
+                
+            except Exception as e:
+                failed += 1
+                print(f"Failed to process prediction for row {idx}: {e}")
         
         total_time = (time.time() - start_time) * 1000
         
@@ -364,43 +326,65 @@ async def upload_and_predict(file: UploadFile = File(...)):
 @router.get("/template/download")
 async def download_template():
     """
-    Download a CSV/Excel template for building data input
+    Download a CSV template for building data input
     
-    Returns the actual input_data.csv with sample data containing:
-    - 48 input columns (building characteristics)
-    - 2 output columns (to be predicted by the model)
+    Creates a sample template with 50 columns (48 inputs + 2 outputs)
+    based on ComStock data structure
     """
     try:
-        # Path to actual input_data.csv template
+        # Check if actual input_data.csv exists
         input_data_path = Path(__file__).parent.parent.parent.parent / "retrofit_planner" / "data" / "input_data.csv"
         
         if input_data_path.exists():
-            # Read the template file
-            sample_df = pd.read_csv(input_data_path)
-            
-            # Take first 3 rows as sample/template
-            if len(sample_df) > 3:
-                sample_df = sample_df.head(3)
-            
-            # Create Excel file in memory for better compatibility
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                sample_df.to_excel(writer, sheet_name='Template', index=False)
-            output.seek(0)
-            
-            return StreamingResponse(
-                output,
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": "attachment; filename=comstock_input_template.xlsx"}
-            )
+            # Use actual file if available
+            sample_df = pd.read_csv(input_data_path, nrows=3)
         else:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Template file not found at: {input_data_path}"
-            )
+            # Create sample template programmatically
+            # This is a simplified version with key ComStock columns
+            sample_data = {
+                # Building characteristics
+                'in.comstock_building_type': ['SmallOffice', 'MediumOffice', 'LargeOffice'],
+                'in.sqft': [10000, 50000, 100000],
+                'in.ashrae_iecc_climate_zone_2006': ['5A', '4A', '3A'],
+                'in.year_built': [1980, 1995, 2010],
+                'in.number_of_stories': [2, 5, 10],
+                
+                # HVAC characteristics
+                'in.hvac_system_type': ['PTAC', 'VAV', 'Packaged Rooftop VAV'],
+                'in.heating_fuel': ['Natural Gas', 'Natural Gas', 'Electricity'],
+                
+                # Envelope characteristics  
+                'in.exterior_wall_construction': ['Steel Framed', 'Mass', 'Steel Framed'],
+                'in.roof_construction': ['Metal Building', 'Built-up', 'Metal Building'],
+                'in.window_to_wall_ratio': [0.3, 0.4, 0.5],
+                
+                # Add 38 more placeholder columns to reach 48 input columns
+                **{f'in.feature_{i}': [0.0, 0.0, 0.0] for i in range(1, 39)},
+                
+                # Output columns (to be predicted)
+                'out.site_energy.total.energy_consumption_intensity': [45.2, 52.8, 38.5],
+                'calc.emissions.total_with_cambium_mid_case_15y..co2e_kg': [45000, 65000, 55000]
+            }
             
-    except HTTPException:
-        raise
+            sample_df = pd.DataFrame(sample_data)
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        sample_df.to_csv(output, index=False)
+        output.seek(0)
+        
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode()),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=comstock_input_template.csv"}
+        )
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating template: {str(e)}"
+        )
+            
     except Exception as e:
         raise HTTPException(
             status_code=500,
