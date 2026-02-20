@@ -1,0 +1,38 @@
+FROM python:3.9-slim
+
+# Install system dependencies for TensorFlow and ML libraries
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    git \
+    libgomp1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
+WORKDIR /home/btap_ml
+
+# Copy only surrogate model dependencies
+COPY requirements-surrogate.txt ./requirements.txt
+COPY src ./src
+COPY input ./input
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create output directory
+RUN mkdir -p output
+
+WORKDIR /home/btap_ml/src
+
+# Start surrogate API only
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "2", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--timeout", "300", \
+     "api.main_surrogate:app"]

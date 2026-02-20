@@ -1,0 +1,47 @@
+name: Build and Deploy Retrofit Planner API
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. v3.0.1)"
+        required: true    
+  push:
+    tags:
+      - 'retrofit-v*.*.*'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Determine Docker tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }})" == "workflow_dispatch" ]]; then
+            echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            TAG=${{ github.ref_name }}
+            echo "value=${TAG#retrofit-v}" >> $GITHUB_OUTPUT
+          fi            
+
+      - name: Build and push Retrofit API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.retrofit
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/retrofit-app:${{ steps.tag.outputs.value }}
+            ${{ secrets.DOCKER_USERNAME }}/retrofit-app:latest

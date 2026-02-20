@@ -1,0 +1,37 @@
+FROM python:3.9-slim
+
+# Install system dependencies for XGBoost and ML libraries
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    git \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
+WORKDIR /home/btap_ml
+
+# Copy only retrofit model dependencies
+COPY requirements-retrofit.txt ./requirements.txt
+COPY retrofit_planner ./retrofit_planner
+
+# Minimal src files needed for retrofit API
+COPY src/api/__init__.py ./src/api/__init__.py
+COPY src/api/routes/__init__.py ./src/api/routes/__init__.py
+COPY src/api/routes/retrofit_prediction.py ./src/api/routes/retrofit_prediction.py
+COPY src/api/routes/auth.py ./src/api/routes/auth.py
+COPY src/api/routes/tests.py ./src/api/routes/tests.py
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+WORKDIR /home/btap_ml/src
+
+# Start retrofit API only
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "2", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--timeout", "300", \
+     "api.main_retrofit:app"]
