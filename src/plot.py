@@ -73,7 +73,7 @@ def plot_metric(df: pd.DataFrame) -> None:
 
     return
 
-plt.style.use('seaborn-darkgrid')
+plt.style.use('ggplot')
 fig, ax = plt.subplots(2, 1, figsize=(8, 10))
 
 def mlp_learning_curve_plot(idx: int, process_type, H) -> None:
@@ -123,7 +123,7 @@ def xgboost_learning_curve_plot(idx: int, train_rmse, val_rmse):
         None.
     """
     if idx == 0:
-        plt.style.use('seaborn-darkgrid')
+        plt.style.use('ggplot')
         global fig
         global ax
 
