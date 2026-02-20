@@ -796,7 +796,7 @@ def categorical_encode(x_train, x_test, x_validate, output_path, ohe_file=''):
     print(other_cols)
     logger.info("categorical encode: %s", cat_cols)
     # Create the encoder.
-    ct = ColumnTransformer([('ohe', OneHotEncoder(sparse_output=False, handle_unknown="ignore"), cat_cols)], remainder=MinMaxScaler())
+    ct = ColumnTransformer([('ohe', OneHotEncoder(sparse=False, handle_unknown="ignore"), cat_cols)], remainder=MinMaxScaler())
     # Load and apply an OHE
     if len(ohe_file) > 0:
         ct = joblib.load(ohe_file)
