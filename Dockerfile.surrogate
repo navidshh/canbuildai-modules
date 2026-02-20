@@ -19,10 +19,12 @@ WORKDIR /home/btap_ml
 
 # Copy only surrogate model dependencies
 COPY requirements-surrogate.txt ./requirements.txt
-COPY src ./src
-COPY input ./input
 
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code and models
+COPY src ./src
+COPY input ./input
 
 # Create output directory
 RUN mkdir -p output

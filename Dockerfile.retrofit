@@ -15,16 +15,12 @@ WORKDIR /home/btap_ml
 
 # Copy only retrofit model dependencies
 COPY requirements-retrofit.txt ./requirements.txt
-COPY retrofit_planner ./retrofit_planner
-
-# Minimal src files needed for retrofit API
-COPY src/api/__init__.py ./src/api/__init__.py
-COPY src/api/routes/__init__.py ./src/api/routes/__init__.py
-COPY src/api/routes/retrofit_prediction.py ./src/api/routes/retrofit_prediction.py
-COPY src/api/routes/auth.py ./src/api/routes/auth.py
-COPY src/api/routes/tests.py ./src/api/routes/tests.py
 
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy needed files for retrofit API
+COPY retrofit_planner ./retrofit_planner
+COPY src/api ./src/api
 
 WORKDIR /home/btap_ml/src
 
