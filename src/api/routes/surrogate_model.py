@@ -11,38 +11,6 @@ from typing import List, Dict, Optional
 from ..api_config import settings
 from ..rate_limit_config import REQUEST_LIMIT_CONFIG, CONCURRENCY_QUOTAS
 
-# Lazy imports for surrogate model (TensorFlow-based)
-# These are imported only when needed to avoid startup failures if TensorFlow is not installed
-_surrogate_model_available = None
-_run_predictions = None
-_get_config_for_model = None
-_extract_location_from_epw = None
-
-def _load_surrogate_model_functions():
-    """Lazy load surrogate model functions that depend on TensorFlow."""
-    global _surrogate_model_available, _run_predictions, _get_config_for_model, _extract_location_from_epw
-    
-    if _surrogate_model_available is None:
-        try:
-            from run_model import run_predictions
-            from model_selector import get_config_for_model, extract_location_from_epw
-            _run_predictions = run_predictions
-            _get_config_for_model = get_config_for_model
-            _extract_location_from_epw = extract_location_from_epw
-            _surrogate_model_available = True
-            logger.info("✓ Surrogate model (TensorFlow-based) loaded successfully")
-        except Exception as e:
-            _surrogate_model_available = False
-            logger.warning(f"Surrogate model not available (TensorFlow not installed): {e}")
-    
-    if not _surrogate_model_available:
-        raise HTTPException(
-            status_code=503,
-            detail="Surrogate model is not available. TensorFlow dependencies are not installed."
-        )
-    
-    return _run_predictions, _get_config_for_model, _extract_location_from_epw
-
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from ..auth.dependency_functions import get_current_user
@@ -51,7 +19,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutErr
 import logging
 import sys
 
-
+# Initialize logging first
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -65,6 +33,45 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# Lazy imports for surrogate model (TensorFlow-based)
+# These are imported only when needed to avoid startup failures if TensorFlow is not installed
+_surrogate_model_available = None
+_run_predictions = None
+_get_config_for_model = None
+_extract_location_from_epw = None
+
+def _load_surrogate_model_functions():
+    """Lazy load surrogate model functions that depend on TensorFlow."""
+    global _surrogate_model_available, _run_predictions, _get_config_for_model, _extract_location_from_epw
+    
+    if _surrogate_model_available is None:
+        try:
+            # Add parent src directory to path to import run_model and model_selector
+            from pathlib import Path
+            src_dir = Path(__file__).parent.parent.parent  # Go from routes -> api -> src
+            if str(src_dir) not in sys.path:
+                sys.path.insert(0, str(src_dir))
+            
+            from run_model import run_predictions
+            from model_selector import get_config_for_model, extract_location_from_epw
+            _run_predictions = run_predictions
+            _get_config_for_model = get_config_for_model
+            _extract_location_from_epw = extract_location_from_epw
+            _surrogate_model_available = True
+            logger.info("✓ Surrogate model (TensorFlow-based) loaded successfully")
+        except Exception as e:
+            _surrogate_model_available = False
+            logger.warning(f"Surrogate model not available (TensorFlow not installed): {type(e).__name__}: {e}")
+            logger.error(f"Failed to load surrogate model", exc_info=True)
+    
+    if not _surrogate_model_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Surrogate model is not available. TensorFlow dependencies are not installed."
+        )
+    
+    return _run_predictions, _get_config_for_model, _extract_location_from_epw
 
 router = APIRouter()
 
@@ -190,7 +197,14 @@ async def run_model_endpoint_s3(
         dfs = {input_filename: df}
 
         # Call the ML logic
-        results = run_predictions(config_file=config_file, api_mode=True, building_data_dict=dfs)
+        try:
+            results = run_predictions(config_file=config_file, api_mode=True, building_data_dict=dfs)
+        except Exception as pred_error:
+            logger.error(f"Prediction error: {type(pred_error).__name__}: {str(pred_error)}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Prediction failed: {type(pred_error).__name__}: {str(pred_error) or 'Unknown error'}"
+            )
 
         if not results or "error" in results:
             raise HTTPException(status_code=500, detail=results.get("error", "ML prediction failed"))
@@ -219,10 +233,16 @@ async def run_model_endpoint_s3(
             "output_key": output_key
         }
 
+    except HTTPException:
+        raise
     except (BotoCoreError, ClientError) as e:
+        logger.error(f"S3 error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"S3 operation error: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")    
+        logger.error(f"Unexpected error: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {type(e).__name__}: {str(e) or 'No error message available'}")    
 
 
 
