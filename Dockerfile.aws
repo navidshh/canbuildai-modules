@@ -5,6 +5,11 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libffi-dev \
     git \
+    libgomp1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
