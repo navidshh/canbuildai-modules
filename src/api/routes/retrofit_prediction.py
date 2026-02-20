@@ -367,6 +367,150 @@ async def upload_and_predict(file: UploadFile = File(...)):
         )
 
 
+class Base64FileUpload(BaseModel):
+    """Model for accepting base64-encoded files"""
+    filename: str = Field(..., description="Original filename with extension")
+    content: str = Field(..., description="Base64-encoded file content")
+
+
+@router.post("/upload-base64")
+async def upload_and_predict_base64(data: Base64FileUpload):
+    """
+    Upload a base64-encoded Excel/CSV file with building data and get predictions
+    
+    This endpoint accepts files as base64-encoded strings, which works better through API Gateway.
+    Expected format is the same as /upload endpoint.
+    """
+    import base64
+    
+    start_time = time.time()
+    
+    # Validate file type
+    if not data.filename.endswith(('.xlsx', '.xls', '.csv')):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Please upload an Excel file (.xlsx, .xls) or CSV file"
+        )
+    
+    try:
+        # Decode base64 content
+        try:
+            contents = base64.b64decode(data.content)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid base64 encoding: {str(e)}"
+            )
+        
+        # Read Excel or CSV file
+        if data.filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            try:
+                df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
+            except:
+                try:
+                    df = pd.read_excel(io.BytesIO(contents), engine='xlrd')
+                except:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Could not read Excel file. Please ensure it's a valid Excel format."
+                    )
+        
+        # Check that we have at least the required input columns
+        if df.shape[1] < 48:
+            raise HTTPException(
+                status_code=400,
+                detail=f"CSV file should have at least 48 input columns. Found only {df.shape[1]} columns."
+            )
+        
+        # Limit number of buildings
+        if len(df) > 1000:
+            raise HTTPException(
+                status_code=400,
+                detail="Maximum 1000 buildings per file. Please split your data."
+            )
+        
+        if len(df) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="CSV file contains no data rows"
+            )
+        
+        # Check if predictor is available
+        if predictor is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Model not loaded. Please check /retrofit/status endpoint for diagnostics."
+            )
+        
+        # Make predictions using the trained model
+        try:
+            predictions_df = predictor.predict(df)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Model prediction failed: {str(e)}"
+            )
+        
+        # Process predictions (same logic as /upload endpoint)
+        predictions = []
+        successful = 0
+        failed = 0
+        
+        for idx, row in predictions_df.iterrows():
+            try:
+                building_type = row.get('in.comstock_building_type', 'Commercial Building')
+                floor_area = row.get('in.sqft', None)
+                climate_zone = row.get('in.ashrae_iecc_climate_zone_2006', 'Unknown')
+                
+                predicted_energy = row.get('predicted_energy_intensity_kwh_per_sqft', 0)
+                predicted_co2 = row.get('predicted_co2_emissions_co2e_kg', 0)
+                
+                # Convert kWh to kBtu (1 kWh = 3.412 kBtu)
+                predicted_eui = predicted_energy * 3.412
+                predicted_ghg = predicted_co2
+                
+                pred_result = PredictionOutput(
+                    predicted_values={
+                        "energy_use_intensity_kbtu_sqft": float(predicted_eui),
+                        "ghg_emissions_kg_co2e": float(predicted_ghg)
+                    },
+                    confidence_scores={"overall": 0.85},
+                    matched_comstock_id=f"COMSTOCK_{10000 + idx}",
+                    model_used="Multi-target XGBoost",
+                    processing_time_ms=10.0 + (idx * 0.5),
+                    building_type=str(building_type),
+                    floor_area=float(floor_area) if floor_area and not pd.isna(floor_area) else 0,
+                    climate_zone=str(climate_zone)
+                )
+                
+                predictions.append(pred_result)
+                successful += 1
+                
+            except Exception as e:
+                failed += 1
+                print(f"Failed to process prediction for row {idx}: {e}")
+        
+        total_time = (time.time() - start_time) * 1000
+        
+        return BatchPredictionOutput(
+            predictions=predictions,
+            total_buildings=len(df),
+            successful_predictions=successful,
+            failed_predictions=failed,
+            total_processing_time_ms=total_time
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing file: {str(e)}"
+        )
+
+
 @router.get("/template/download")
 async def download_template():
     """
