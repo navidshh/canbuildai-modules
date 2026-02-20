@@ -34,44 +34,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Lazy imports for surrogate model (TensorFlow-based)
-# These are imported only when needed to avoid startup failures if TensorFlow is not installed
-_surrogate_model_available = None
-_run_predictions = None
-_get_config_for_model = None
-_extract_location_from_epw = None
-
-def _load_surrogate_model_functions():
-    """Lazy load surrogate model functions that depend on TensorFlow."""
-    global _surrogate_model_available, _run_predictions, _get_config_for_model, _extract_location_from_epw
-    
-    if _surrogate_model_available is None:
-        try:
-            # Add parent src directory to path to import run_model and model_selector
-            from pathlib import Path
-            src_dir = Path(__file__).parent.parent.parent  # Go from routes -> api -> src
-            if str(src_dir) not in sys.path:
-                sys.path.insert(0, str(src_dir))
-            
-            from run_model import run_predictions
-            from model_selector import get_config_for_model, extract_location_from_epw
-            _run_predictions = run_predictions
-            _get_config_for_model = get_config_for_model
-            _extract_location_from_epw = extract_location_from_epw
-            _surrogate_model_available = True
-            logger.info("✓ Surrogate model (TensorFlow-based) loaded successfully")
-        except Exception as e:
-            _surrogate_model_available = False
-            logger.warning(f"Surrogate model not available (TensorFlow not installed): {type(e).__name__}: {e}")
-            logger.error(f"Failed to load surrogate model", exc_info=True)
-    
-    if not _surrogate_model_available:
-        raise HTTPException(
-            status_code=503,
-            detail="Surrogate model is not available. TensorFlow dependencies are not installed."
-        )
-    
-    return _run_predictions, _get_config_for_model, _extract_location_from_epw
+# Import surrogate model functions (TensorFlow-based)
+from run_model import run_predictions
+from model_selector import get_config_for_model, extract_location_from_epw
 
 router = APIRouter()
 
@@ -169,9 +134,6 @@ async def run_model_endpoint_s3(
 
         # Auto-select config file based on building type and location from the input data
         if not config_file or config_file == "input_config.yml":
-            # Load surrogate model functions (will raise HTTPException if not available)
-            run_predictions, get_config_for_model, extract_location_from_epw = _load_surrogate_model_functions()
-            
             # Extract building type and location from the dataframe
             building_type = df.get('bldg_standards_building_type', pd.Series([None])).iloc[0]
             epw_file = df.get(':epw_file', pd.Series([None])).iloc[0]
@@ -189,9 +151,6 @@ async def run_model_endpoint_s3(
                 # Fallback to default
                 config_file = "input_config_midrise_toronto.yml"
                 logger.warning(f"Could not extract building type or location. Using default: {config_file}")
-        else:
-            # Load surrogate model functions
-            run_predictions, _, _ = _load_surrogate_model_functions()
 
         # Prepare dfs dict (compatible with original: key is filename)
         dfs = {input_filename: df}
@@ -425,13 +384,6 @@ async def process_user_model(
         # ---------------------------------------------------
         # 1.5 Auto-detect building type and location from the dataframe
         # ---------------------------------------------------
-        # Load surrogate model functions
-        try:
-            run_predictions, get_config_for_model, extract_location_from_epw = _load_surrogate_model_functions()
-        except HTTPException:
-            logger.error(f"Surrogate model not available for user {user_id}")
-            return  # Task ends but concurrency decrements inside finally
-        
         # Extract building type and location from the dataframe
         building_type = df.get('bldg_standards_building_type', pd.Series([None])).iloc[0]
         epw_file = df.get(':epw_file', pd.Series([None])).iloc[0]
