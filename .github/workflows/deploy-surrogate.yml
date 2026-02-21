@@ -45,3 +45,94 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/surrogate-app:${{ steps.tag.outputs.value }}
             ${{ secrets.DOCKER_USERNAME }}/surrogate-app:latest
+
+  deploy-to-ecs:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      id-token: write
+      contents: read    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Determine Docker tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            TAG=${{ github.ref_name }}
+            echo "value=${TAG#surrogate-v}" >> $GITHUB_OUTPUT
+          fi            
+
+      - name: Deploy Surrogate API to Amazon ECS
+        run: |
+          CLUSTER_NAME="${{ secrets.SURROGATE_ECS_CLUSTER }}"
+          SERVICE_NAME="${{ secrets.SURROGATE_ECS_SERVICE }}"
+          TASK_FAMILY="${{ secrets.SURROGATE_ECS_TASK_FAMILY }}"
+          NEW_IMAGE_URI="${{ secrets.DOCKER_USERNAME }}/surrogate-app:${{ steps.tag.outputs.value }}"
+
+          echo "Deploying Surrogate API to ECS: $NEW_IMAGE_URI"
+          
+          aws ecs describe-task-definition --task-definition $TASK_FAMILY > task-definition.json
+
+          jq --arg IMAGE_URI "$NEW_IMAGE_URI" \
+            --arg COGNITO_REGION "${{ secrets.COGNITO_REGION }}" \
+            --arg COGNITO_USER_POOL_ID "${{ secrets.COGNITO_USER_POOL_ID }}" \
+            --arg COGNITO_APP_CLIENT_ID "${{ secrets.COGNITO_APP_CLIENT_ID }}" \
+            --arg COGNITO_APP_PUBLIC_CLIENT_ID "${{ secrets.COGNITO_APP_PUBLIC_CLIENT_ID }}" \
+            --arg COGNITO_APP_CLIENT_SECRET "${{ secrets.COGNITO_APP_CLIENT_SECRET }}" \
+            --arg COGNITO_DOMAIN "${{ secrets.COGNITO_DOMAIN }}" \
+            --arg APP_BASE_URL "${{ secrets.APP_BASE_URL }}" \
+            --arg VERSION_STRING "${{ steps.tag.outputs.value }}" \
+            --arg REDIS_ENDPOINT "${{ secrets.REDIS_ENDPOINT }}" \
+            --arg REDIS_PORT "${{ secrets.REDIS_PORT }}" \
+            --arg BUCKET_NAME "${{ secrets.BUCKET_NAME }}" \
+          '
+          .taskDefinition
+          | .containerDefinitions[0].image = $IMAGE_URI
+          | .containerDefinitions[0].environment |= (
+              map(select(.name != "COGNITO_REGION" and
+                        .name != "COGNITO_USER_POOL_ID" and
+                        .name != "COGNITO_APP_CLIENT_ID" and
+                        .name != "COGNITO_APP_PUBLIC_CLIENT_ID" and
+                        .name != "COGNITO_APP_CLIENT_SECRET" and
+                        .name != "COGNITO_DOMAIN" and
+                        .name != "APP_BASE_URL" and
+                        .name != "VERSION_STRING" and
+                        .name != "REDIS_ENDPOINT" and
+                        .name != "REDIS_PORT" and
+                        .name != "BUCKET_NAME"
+              ))
+              + [
+                  {name: "COGNITO_REGION", value: $COGNITO_REGION},
+                  {name: "COGNITO_USER_POOL_ID", value: $COGNITO_USER_POOL_ID},
+                  {name: "COGNITO_APP_CLIENT_ID", value: $COGNITO_APP_CLIENT_ID},
+                  {name: "COGNITO_APP_PUBLIC_CLIENT_ID", value: $COGNITO_APP_PUBLIC_CLIENT_ID},
+                  {name: "COGNITO_APP_CLIENT_SECRET", value: $COGNITO_APP_CLIENT_SECRET},
+                  {name: "COGNITO_DOMAIN", value: $COGNITO_DOMAIN},
+                  {name: "APP_BASE_URL", value: $APP_BASE_URL},
+                  {name: "VERSION_STRING", value: $VERSION_STRING},
+                  {name: "REDIS_ENDPOINT", value: $REDIS_ENDPOINT},
+                  {name: "REDIS_PORT", value: $REDIS_PORT},
+                  {name: "BUCKET_NAME", value: $BUCKET_NAME}
+                ]
+          )
+          | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .tags)
+          ' task-definition.json > new-task-definition.json
+
+          NEW_TASK_INFO=$(aws ecs register-task-definition --cli-input-json file://new-task-definition.json)
+          NEW_REVISION_ARN=$(echo $NEW_TASK_INFO | jq -r '.taskDefinition.taskDefinitionArn')
+
+          echo "Updating ECS service to use new revision: $NEW_REVISION_ARN"
+          aws ecs update-service \
+            --cluster $CLUSTER_NAME \
+            --service $SERVICE_NAME \
+            --task-definition $NEW_REVISION_ARN \
+            --force-new-deployment
+          
+          echo "Surrogate API deployment initiated successfully."
