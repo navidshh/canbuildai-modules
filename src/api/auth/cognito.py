@@ -9,8 +9,15 @@ from ..api_config import settings
 
 
 # Store JWKS keys globally to avoid fetching them on every request
-response = requests.get(settings.JWKS_URL)
-jwks = response.json()["keys"]
+# Handle case where Cognito is not configured (e.g., local dev or auth disabled)
+try:
+    response = requests.get(settings.JWKS_URL, timeout=5)
+    response.raise_for_status()
+    jwks = response.json()["keys"]
+except Exception as e:
+    print(f"Warning: Could not fetch Cognito JWKS keys: {e}")
+    print("Authentication will not be available. Setting jwks to empty list.")
+    jwks = []
 
 
 def get_cognito_login_url():
