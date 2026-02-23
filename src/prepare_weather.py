@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import typer
 import yaml
-import config
+from src import config
 import zipfile
 from io import BytesIO
 import requests

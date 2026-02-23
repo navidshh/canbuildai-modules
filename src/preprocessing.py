@@ -18,8 +18,8 @@ from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
 from src import config
-import plot as pl
-import prepare_weather
+from src import plot as pl
+from src import prepare_weather
 from models.preprocessing_model import PreprocessingModel
 
 from typing import List
