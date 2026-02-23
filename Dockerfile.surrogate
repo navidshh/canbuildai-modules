@@ -18,6 +18,10 @@ COPY requirements-surrogate.txt ./requirements.txt
 # Install numpy first to ensure binary compatibility
 RUN pip install --no-cache-dir numpy==1.23.5
 
+# Install scikit-learn with no-binary to compile against the installed numpy
+RUN pip install --no-cache-dir --no-binary scikit-learn scikit-learn==1.2.2
+
+# Install remaining requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code and models
