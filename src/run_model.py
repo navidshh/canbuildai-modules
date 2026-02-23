@@ -11,11 +11,18 @@ from pathlib import Path
 import joblib
 import pandas as pd
 import typer
-from tensorflow import keras
 
 import config
 import preprocessing
 from models.running_model import RunningModel
+
+# Conditional import for TensorFlow/Keras - only needed for MLP models, not XGBoost
+try:
+    from tensorflow import keras
+    KERAS_AVAILABLE = True
+except ImportError:
+    KERAS_AVAILABLE = False
+    keras = None
 from typing import Dict, Optional, Any
 import yaml
 
@@ -330,10 +337,12 @@ def run_predictions(
         logger.info("Transforming the input data with provided scaler files.")
         # Scale the input data
         X = scaler_X.transform(X_df)
-        logger.info("Loading the specified keras model.")
-        # Load the keras model
+        logger.info("Loading the specified model.")
+        # Load the model
         log_memory_usage("BSUP report, Before loading model")
         if selected_model_type.lower() == config.Settings().APP_CONFIG.MULTILAYER_PERCEPTRON:
+            if not KERAS_AVAILABLE:
+                raise ImportError("TensorFlow/Keras is required for MLP models but is not installed. Install with: pip install tensorflow>=2.15.0")
             model = keras.models.load_model(input_model.model_file, compile=False)
         else:
             model = joblib.load(input_model.model_file)
