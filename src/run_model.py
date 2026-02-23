@@ -12,8 +12,8 @@ import joblib
 import pandas as pd
 import typer
 
-import config
-import preprocessing
+from src import config
+from src import preprocessing
 from models.running_model import RunningModel
 
 # Conditional import for TensorFlow/Keras - only needed for MLP models, not XGBoost
