@@ -92,9 +92,12 @@ jobs:
             --arg REDIS_ENDPOINT "${{ secrets.REDIS_ENDPOINT }}" \
             --arg REDIS_PORT "${{ secrets.REDIS_PORT }}" \
             --arg BUCKET_NAME "${{ secrets.BUCKET_NAME }}" \
+            --arg DOCKER_CREDS_ARN "arn:aws:secretsmanager:ca-central-1:834599497928:secret:dockerhub-credentials-avsQLG" \
           '
           .taskDefinition
           | .containerDefinitions[0].image = $IMAGE_URI
+          | .containerDefinitions[0].repositoryCredentials = {"credentialsParameter": $DOCKER_CREDS_ARN}
+          | .executionRoleArn = "arn:aws:iam::834599497928:role/ecsTaskExecutionRole"
           | .containerDefinitions[0].environment |= (
               map(select(.name != "COGNITO_REGION" and
                         .name != "COGNITO_USER_POOL_ID" and
