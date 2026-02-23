@@ -1,0 +1,43 @@
+{
+  "family": "btap-app-test3-dev-tgw-3-task",
+  "networkMode": "bridge",
+  "requiresCompatibilities": ["EC2"],
+  "containerDefinitions": [
+    {
+      "name": "app",
+      "image": "nshirzad/retrofit-app:1.0.1",
+      "cpu": 0,
+      "memory": 4096,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {"name": "COGNITO_APP_CLIENT_SECRET", "value": "5ddcdubtfnfo4ddgf17k0n0lk2jcfeu9p68c3dbru92jlns40n5"},
+        {"name": "REDIS_PORT", "value": "6379"},
+        {"name": "COGNITO_DOMAIN", "value": "https://my-app-dev-auth.auth.ca-central-1.amazoncognito.com"},
+        {"name": "APP_BASE_URL", "value": "https://08879hja2c.execute-api.ca-central-1.amazonaws.com/"},
+        {"name": "HTTP_PORT", "value": "8000"},
+        {"name": "COGNITO_REGION", "value": "ca-central-1"},
+        {"name": "COGNITO_APP_CLIENT_ID", "value": "qbsqmg5h1763rs4bhhb8b2rt1"},
+        {"name": "VERSION_STRING", "value": "v1.0.1"},
+        {"name": "COGNITO_APP_PUBLIC_CLIENT_ID", "value": "5bgbhdmf992b3noik75ei3d0ld"},
+        {"name": "COGNITO_USER_POOL_ID", "value": "ca-central-1_RvSMoKW4n"},
+        {"name": "REDIS_ENDPOINT", "value": "btap-app-test3-dev-tgw-3-redis-cluster.4fzcvz.0001.cac1.cache.amazonaws.com"},
+        {"name": "BUCKET_NAME", "value": "btap-app-test3-dev-tgw-3-btap-v1-uploads"}
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/btap-app-test3-dev-tgw-3-service",
+          "awslogs-region": "ca-central-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

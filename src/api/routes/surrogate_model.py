@@ -35,8 +35,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import surrogate model functions (XGBoost-based)
-from run_model import run_predictions
-from model_selector import get_config_for_model, extract_location_from_epw
+from src.run_model import run_predictions
+from src.model_selector import get_config_for_model, extract_location_from_epw
 
 router = APIRouter()
 

@@ -1,0 +1,107 @@
+﻿{
+    "taskDefinition": {
+        "taskDefinitionArn": "arn:aws:ecs:ca-central-1:834599497928:task-definition/btap-app-test3-dev-tgw-3-task:44",
+        "containerDefinitions": [
+            {
+                "name": "app",
+                "image": "nshirzad/surrogate-app:retrofit-v1.0.0",
+                "cpu": 0,
+                "portMappings": [
+                    {
+                        "containerPort": 8000,
+                        "hostPort": 8000,
+                        "protocol": "tcp"
+                    }
+                ],
+                "essential": true,
+                "environment": [
+                    {
+                        "name": "COGNITO_APP_CLIENT_SECRET",
+                        "value": "5ddcdubtfnfo4ddgf17k0n0lk2jcfeu9p68c3dbru92jlns40n5"
+                    },
+                    {
+                        "name": "REDIS_PORT",
+                        "value": "6379"
+                    },
+                    {
+                        "name": "COGNITO_DOMAIN",
+                        "value": "https://my-app-dev-auth.auth.ca-central-1.amazoncognito.com"
+                    },
+                    {
+                        "name": "APP_BASE_URL",
+                        "value": "https://08879hja2c.execute-api.ca-central-1.amazonaws.com/"
+                    },
+                    {
+                        "name": "HTTP_PORT",
+                        "value": "8000"
+                    },
+                    {
+                        "name": "COGNITO_REGION",
+                        "value": "ca-central-1"
+                    },
+                    {
+                        "name": "COGNITO_APP_CLIENT_ID",
+                        "value": "qbsqmg5h1763rs4bhhb8b2rt1"
+                    },
+                    {
+                        "name": "VERSION_STRING",
+                        "value": "v1.3.0"
+                    },
+                    {
+                        "name": "COGNITO_APP_PUBLIC_CLIENT_ID",
+                        "value": "5bgbhdmf992b3noik75ei3d0ld"
+                    },
+                    {
+                        "name": "COGNITO_USER_POOL_ID",
+                        "value": "ca-central-1_RvSMoKW4n"
+                    },
+                    {
+                        "name": "REDIS_ENDPOINT",
+                        "value": "btap-app-test3-dev-tgw-3-redis-cluster.4fzcvz.0001.cac1.cache.amazonaws.com"
+                    },
+                    {
+                        "name": "BUCKET_NAME",
+                        "value": "btap-app-test3-dev-tgw-3-btap-v1-uploads"
+                    }
+                ],
+                "mountPoints": [],
+                "volumesFrom": [],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": "/ecs/btap-app-test3-dev-tgw-3-service",
+                        "awslogs-region": "ca-central-1",
+                        "awslogs-stream-prefix": "ecs"
+                    }
+                },
+                "systemControls": []
+            }
+        ],
+        "family": "btap-app-test3-dev-tgw-3-task",
+        "networkMode": "bridge",
+        "revision": 44,
+        "volumes": [],
+        "status": "ACTIVE",
+        "requiresAttributes": [
+            {
+                "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+            }
+        ],
+        "placementConstraints": [],
+        "compatibilities": [
+            "EXTERNAL",
+            "EC2"
+        ],
+        "requiresCompatibilities": [
+            "EC2"
+        ],
+        "cpu": "1024",
+        "memory": "6144",
+        "registeredAt": "2026-02-20T18:58:45.978000-05:00",
+        "registeredBy": "arn:aws:sts::834599497928:assumed-role/navid-github-actions-deployer-role/GitHubActions"
+    },
+    "tags": []
+}
