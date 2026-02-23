@@ -24,12 +24,10 @@ COPY input ./input
 # Create output directory
 RUN mkdir -p output
 
-WORKDIR /home/btap_ml/src
-
-# Start surrogate API only
+# Start surrogate API only (run from /home/btap_ml so relative imports work)
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "2", \
      "--worker-class", "uvicorn.workers.UvicornWorker", \
      "--timeout", "300", \
-     "api.main_surrogate:app"]
+     "src.api.main_surrogate:app"]
