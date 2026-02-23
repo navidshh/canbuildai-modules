@@ -3,9 +3,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
-from ..api_config import settings
-from ..routes import auth, tests, maintenance, surrogate_model
-from ..redis_client import init_redis, close_redis
+from .api_config import settings
+from .routes import auth, tests, maintenance, surrogate_model
+from .redis_client import init_redis, close_redis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
