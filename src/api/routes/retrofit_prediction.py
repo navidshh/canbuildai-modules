@@ -323,7 +323,8 @@ async def upload_and_predict(file: UploadFile = File(...)):
                 
                 # Convert kWh to kBtu (1 kWh = 3.412 kBtu)
                 predicted_eui = predicted_energy * 3.412
-                predicted_ghg = predicted_co2
+                # Clamp negative emissions to zero (model extrapolation beyond training range)
+                predicted_ghg = max(0, predicted_co2)
                 
                 # Store numeric predictions only in predicted_values
                 # Non-numeric metadata goes in separate response fields
@@ -469,7 +470,8 @@ async def upload_and_predict_base64(data: Base64FileUpload):
                 
                 # Convert kWh to kBtu (1 kWh = 3.412 kBtu)
                 predicted_eui = predicted_energy * 3.412
-                predicted_ghg = predicted_co2
+                # Clamp negative emissions to zero (model extrapolation beyond training range)
+                predicted_ghg = max(0, predicted_co2)
                 
                 pred_result = PredictionOutput(
                     predicted_values={
