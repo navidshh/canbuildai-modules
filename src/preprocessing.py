@@ -20,7 +20,7 @@ from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from src import config
 from src import plot as pl
 from src import prepare_weather
-from models.preprocessing_model import PreprocessingModel
+from src.models.preprocessing_model import PreprocessingModel
 
 from typing import List
 

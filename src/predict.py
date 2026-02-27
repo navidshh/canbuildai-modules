@@ -36,7 +36,7 @@ from xgboost import XGBRegressor
 import config
 import plot as pl
 import preprocessing
-from models.predict_model import PredictModel
+from src.models.predict_model import PredictModel
 
 from tune_model import det_coeff, rmse_loss, tune_mlp, tune_gradient_boosting, tune_rf
 

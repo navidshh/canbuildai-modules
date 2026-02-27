@@ -14,7 +14,7 @@ import typer
 
 from src import config
 from src import preprocessing
-from models.running_model import RunningModel
+from src.models.running_model import RunningModel
 
 # Conditional import for TensorFlow/Keras - only needed for MLP models, not XGBoost
 try:

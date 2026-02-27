@@ -15,7 +15,7 @@ import config
 import feature_selection
 import predict
 import preprocessing
-from models.training_model import TrainingModel
+from src.models.training_model import TrainingModel
 
 # Get a log handler
 logging.basicConfig(level=logging.INFO)

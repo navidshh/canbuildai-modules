@@ -24,7 +24,7 @@ from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
 import config
 import plot as pl
 import preprocessing
-from models.predict_model import PredictModel
+from src.models.predict_model import PredictModel
 
 def det_coeff(y_true, y_pred):
     """

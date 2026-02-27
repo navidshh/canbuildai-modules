@@ -20,7 +20,7 @@ from sklearn.preprocessing import (MaxAbsScaler, MinMaxScaler, Normalizer,
                                    RobustScaler, StandardScaler, minmax_scale)
 
 import config
-from models.feature_selection_model import FeatureSelectionModel
+from src.models.feature_selection_model import FeatureSelectionModel
 
 ############################################################
 # feature selection
