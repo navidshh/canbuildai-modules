@@ -91,7 +91,7 @@ jobs:
             --arg VERSION_STRING "${{ steps.tag.outputs.value }}" \
             --arg REDIS_ENDPOINT "${{ secrets.REDIS_ENDPOINT }}" \
             --arg REDIS_PORT "${{ secrets.REDIS_PORT }}" \
-            --arg BUCKET_NAME "${{ secrets.BUCKET_NAME }}" \
+            --arg BUCKET_NAME "surrogate-api-dev-tgw-3-btap-v1-uploads" \
             --arg DOCKER_CREDS_ARN "arn:aws:secretsmanager:ca-central-1:834599497928:secret:dockerhub-credentials-avsQLG" \
           '
           .taskDefinition
