@@ -46,6 +46,7 @@ app.add_middleware(
     allow_origins=[
         "https://navidshh.github.io",
         "https://main.d13kp0x3kfwupp.amplifyapp.com",
+        "https://main.d2hvpyy9rpvb37.amplifyapp.com",
         "http://localhost:8080",
         "http://localhost:8000"
     ],
