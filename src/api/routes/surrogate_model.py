@@ -134,15 +134,16 @@ async def run_model_endpoint_s3(
 
         # Auto-select config file based on building type and location from the input data
         if not config_file or config_file == "input_config.yml":
-            # Extract building type and location from the dataframe
-            building_type = df.get('bldg_standards_building_type', pd.Series([None])).iloc[0]
+            # Prefer the user-selected ':building_type' column; fall back to the
+            # legacy 'bldg_standards_building_type' default only if missing.
+            building_type = df.get(':building_type', pd.Series([None])).iloc[0]
+            if not building_type:
+                building_type = df.get('bldg_standards_building_type', pd.Series([None])).iloc[0]
+
             epw_file = df.get(':epw_file', pd.Series([None])).iloc[0]
-            
-            if not building_type or not epw_file:
-                # Try alternate column names
-                building_type = building_type or df.get(':building_type', pd.Series([None])).iloc[0]
-                epw_file = epw_file or df.get('epw_file', pd.Series([None])).iloc[0]
-            
+            if not epw_file:
+                epw_file = df.get('epw_file', pd.Series([None])).iloc[0]
+
             if building_type and epw_file:
                 location = extract_location_from_epw(str(epw_file))
                 config_file = get_config_for_model(str(building_type), location)
@@ -384,15 +385,16 @@ async def process_user_model(
         # ---------------------------------------------------
         # 1.5 Auto-detect building type and location from the dataframe
         # ---------------------------------------------------
-        # Extract building type and location from the dataframe
-        building_type = df.get('bldg_standards_building_type', pd.Series([None])).iloc[0]
+        # Prefer the user-selected ':building_type' column; fall back to the
+        # legacy 'bldg_standards_building_type' default only if missing.
+        building_type = df.get(':building_type', pd.Series([None])).iloc[0]
+        if not building_type:
+            building_type = df.get('bldg_standards_building_type', pd.Series([None])).iloc[0]
+
         epw_file = df.get(':epw_file', pd.Series([None])).iloc[0]
-        
-        if not building_type or not epw_file:
-            # Try alternate column names
-            building_type = building_type or df.get(':building_type', pd.Series([None])).iloc[0]
-            epw_file = epw_file or df.get('epw_file', pd.Series([None])).iloc[0]
-        
+        if not epw_file:
+            epw_file = df.get('epw_file', pd.Series([None])).iloc[0]
+
         if building_type and epw_file:
             location = extract_location_from_epw(str(epw_file))
             config_file = get_config_for_model(str(building_type), location)

@@ -6,6 +6,22 @@ output
 testing
 # input by BSUP for tests
 
+# Local secrets / credential scratch files — NEVER commit
+dockerhub-secret*.json
+dockerhub-secrets-*.json
+*-credentials.json
+iam-*-policy.json
+trust-policy*.json
+
+# Local AWS task-definition snapshots (use the canonical one in the repo only)
+*-task-def-*.json
+*-task-current.json
+*-task-new.json
+current-task-definition.json
+retrofit-task-current.json
+retrofit-task-new.json
+surrogate-task-def-*.json
+
 ### direnv ###
 .direnv
 #.envrc
