@@ -156,10 +156,15 @@ async def get_current_user_from_token(token: str) -> Dict[str, Any]:
     """Validate JWT and return user info."""
     try:
         return validate_token(token)
-    except Exception:
+    except HTTPException:
+        # Preserve the descriptive detail from validate_token
+        # (e.g. "Invalid issuer", "Public key not found in JWKS", "Signature verification failed").
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error validating token: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token2",
+            detail=f"Invalid or expired token: {e}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

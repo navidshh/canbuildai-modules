@@ -42,6 +42,13 @@ def _load_registry() -> list[dict]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Code Assistant service (loading FAISS indexes)...")
+    logger.info(
+        "Cognito config: region=%r user_pool_id=%r public_client_id=%r issuer=%r",
+        settings.COGNITO_REGION,
+        settings.COGNITO_USER_POOL_ID,
+        settings.COGNITO_APP_PUBLIC_CLIENT_ID,
+        settings.COGNITO_ISSUER,
+    )
     try:
         get_service().load(_load_registry())
     except Exception as e:  # noqa: BLE001
