@@ -1,0 +1,145 @@
+name: Build and Deploy Code Assistant API
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. v1.0.1)"
+        required: true
+  push:
+    tags:
+      - 'code-assistant-v*.*.*'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Determine Docker tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            TAG=${{ github.ref_name }}
+            echo "value=${TAG#code-assistant-v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push Code Assistant image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.code-assistant
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/code-assistant-app:${{ steps.tag.outputs.value }}
+            ${{ secrets.DOCKER_USERNAME }}/code-assistant-app:latest
+
+  deploy-to-ecs:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Determine Docker tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            TAG=${{ github.ref_name }}
+            echo "value=${TAG#code-assistant-v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy Code Assistant API to Amazon ECS
+        run: |
+          CLUSTER_NAME="${{ secrets.CODE_ASSISTANT_ECS_CLUSTER }}"
+          SERVICE_NAME="${{ secrets.CODE_ASSISTANT_ECS_SERVICE }}"
+          TASK_FAMILY="${{ secrets.CODE_ASSISTANT_ECS_TASK_FAMILY }}"
+          NEW_IMAGE_URI="${{ secrets.DOCKER_USERNAME }}/code-assistant-app:${{ steps.tag.outputs.value }}"
+
+          echo "Deploying Code Assistant API to ECS: $NEW_IMAGE_URI"
+
+          aws ecs describe-task-definition --task-definition $TASK_FAMILY > task-definition.json
+
+          jq --arg IMAGE_URI "$NEW_IMAGE_URI" \
+            --arg COGNITO_REGION "${{ secrets.COGNITO_REGION }}" \
+            --arg COGNITO_USER_POOL_ID "${{ secrets.COGNITO_USER_POOL_ID }}" \
+            --arg COGNITO_APP_CLIENT_ID "${{ secrets.COGNITO_APP_CLIENT_ID }}" \
+            --arg COGNITO_APP_PUBLIC_CLIENT_ID "${{ secrets.COGNITO_APP_PUBLIC_CLIENT_ID }}" \
+            --arg COGNITO_APP_CLIENT_SECRET "${{ secrets.COGNITO_APP_CLIENT_SECRET }}" \
+            --arg COGNITO_DOMAIN "${{ secrets.COGNITO_DOMAIN }}" \
+            --arg APP_BASE_URL "${{ secrets.CODE_ASSISTANT_APP_BASE_URL }}" \
+            --arg VERSION_STRING "${{ steps.tag.outputs.value }}" \
+            --arg KB_BUCKET "${{ secrets.CODE_ASSISTANT_KB_BUCKET }}" \
+            --arg BEDROCK_MODEL_ID "${{ secrets.BEDROCK_MODEL_ID }}" \
+            --arg BEDROCK_EMBED_MODEL_ID "${{ secrets.BEDROCK_EMBED_MODEL_ID }}" \
+            --arg BEDROCK_EMBED_DIM "${{ secrets.BEDROCK_EMBED_DIM }}" \
+            --arg BEDROCK_REGION "${{ secrets.BEDROCK_REGION }}" \
+            --arg DOCKER_CREDS_ARN "arn:aws:secretsmanager:ca-central-1:834599497928:secret:dockerhub-credentials-avsQLG" \
+          '
+          .taskDefinition
+          | .containerDefinitions[0].image = $IMAGE_URI
+          | .containerDefinitions[0].repositoryCredentials = {"credentialsParameter": $DOCKER_CREDS_ARN}
+          | .executionRoleArn = "arn:aws:iam::834599497928:role/ecsTaskExecutionRole"
+          | .containerDefinitions[0].environment |= (
+              map(select(.name != "COGNITO_REGION" and
+                        .name != "COGNITO_USER_POOL_ID" and
+                        .name != "COGNITO_APP_CLIENT_ID" and
+                        .name != "COGNITO_APP_PUBLIC_CLIENT_ID" and
+                        .name != "COGNITO_APP_CLIENT_SECRET" and
+                        .name != "COGNITO_DOMAIN" and
+                        .name != "APP_BASE_URL" and
+                        .name != "VERSION_STRING" and
+                        .name != "CODE_ASSISTANT_KB_BUCKET" and
+                        .name != "BEDROCK_MODEL_ID" and
+                        .name != "BEDROCK_EMBED_MODEL_ID" and
+                        .name != "BEDROCK_EMBED_DIM" and
+                        .name != "BEDROCK_REGION"
+              ))
+              + [
+                  {name: "COGNITO_REGION", value: $COGNITO_REGION},
+                  {name: "COGNITO_USER_POOL_ID", value: $COGNITO_USER_POOL_ID},
+                  {name: "COGNITO_APP_CLIENT_ID", value: $COGNITO_APP_CLIENT_ID},
+                  {name: "COGNITO_APP_PUBLIC_CLIENT_ID", value: $COGNITO_APP_PUBLIC_CLIENT_ID},
+                  {name: "COGNITO_APP_CLIENT_SECRET", value: $COGNITO_APP_CLIENT_SECRET},
+                  {name: "COGNITO_DOMAIN", value: $COGNITO_DOMAIN},
+                  {name: "APP_BASE_URL", value: $APP_BASE_URL},
+                  {name: "VERSION_STRING", value: $VERSION_STRING},
+                  {name: "CODE_ASSISTANT_KB_BUCKET", value: $KB_BUCKET},
+                  {name: "BEDROCK_MODEL_ID", value: $BEDROCK_MODEL_ID},
+                  {name: "BEDROCK_EMBED_MODEL_ID", value: $BEDROCK_EMBED_MODEL_ID},
+                  {name: "BEDROCK_EMBED_DIM", value: $BEDROCK_EMBED_DIM},
+                  {name: "BEDROCK_REGION", value: $BEDROCK_REGION}
+                ]
+          )
+          | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .tags)
+          ' task-definition.json > new-task-definition.json
+
+          NEW_TASK_INFO=$(aws ecs register-task-definition --cli-input-json file://new-task-definition.json)
+          NEW_REVISION_ARN=$(echo $NEW_TASK_INFO | jq -r '.taskDefinition.taskDefinitionArn')
+
+          echo "Updating ECS service to use new revision: $NEW_REVISION_ARN"
+          aws ecs update-service \
+            --cluster $CLUSTER_NAME \
+            --service $SERVICE_NAME \
+            --task-definition $NEW_REVISION_ARN \
+            --force-new-deployment

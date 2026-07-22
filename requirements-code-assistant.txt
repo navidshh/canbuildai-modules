@@ -1,0 +1,27 @@
+# Building Energy Code & Standards Assistant — API requirements
+# RAG service using Bedrock (embeddings + LLM) + local FAISS retrieval.
+
+# --- FastAPI / web ---
+fastapi==0.95.2
+uvicorn==0.22.0
+gunicorn==21.2.0
+python-multipart==0.0.9
+pydantic>=1.10.0,<2.0.0
+requests==2.28.2
+
+# --- Auth (shared pattern with surrogate/retrofit) ---
+python-jose==3.4.0
+PyJWT==2.8.0
+ecdsa==0.19.1
+
+# --- AWS + Bedrock ---
+boto3==1.37.38
+botocore==1.37.38
+
+# --- Retrieval (FAISS + numpy) ---
+numpy>=1.23.5,<2.0.0
+faiss-cpu==1.8.0
+
+# --- PDF extraction (used by offline ingestion; runtime container also needs it for on-boot rebuild if bundles are missing) ---
+pdfplumber==0.11.4
+pypdf==4.3.1

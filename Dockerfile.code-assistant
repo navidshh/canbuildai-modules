@@ -1,0 +1,50 @@
+FROM python:3.11-slim
+
+# System deps for pdfplumber, FAISS, and general build.
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    libgomp1 \
+    poppler-utils \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
+WORKDIR /home/btap_ml
+
+# Install Python deps first for better layer caching.
+COPY requirements-code-assistant.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# --- Application code ---
+# Shared FastAPI / auth / routes / services (surrogate, retrofit, code-assistant all share this base).
+COPY src/api ./src/api
+
+# The Code-Compliance module: ingestion + retriever code becomes the `code_compliance` Python package.
+COPY Code-Compliance/src ./code_compliance
+
+# Registry file (list of available codes) is read at boot.
+COPY Code-Compliance/knowledge_bases.json ./Code-Compliance/knowledge_bases.json
+
+WORKDIR /home/btap_ml/src
+
+# NOTE: FAISS indexes are downloaded from S3 at boot (CODE_ASSISTANT_KB_BUCKET env var).
+# The container does not ship with the PDFs or pre-built indexes.
+
+ENV PYTHONPATH=/home/btap_ml:/home/btap_ml/src \
+    CODE_ASSISTANT_REGISTRY=/home/btap_ml/Code-Compliance/knowledge_bases.json \
+    CODE_ASSISTANT_INDEX_DIR=/tmp/code_assistant_indexes \
+    BEDROCK_MODEL_ID=mistral.mistral-large-2402-v1:0 \
+    BEDROCK_EMBED_MODEL_ID=amazon.titan-embed-text-v2:0 \
+    BEDROCK_EMBED_DIM=1024
+
+EXPOSE 8000
+
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "2", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--timeout", "300", \
+     "api.main_code_assistant:app"]
