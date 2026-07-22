@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from .api_config import settings
-from .routes import auth, code_assistant, tests
+from .routes import auth, code_assistant
 from .services.bedrock_rag import get_service
 
 logging.basicConfig(level=logging.INFO)
@@ -76,9 +76,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Auth + tests shared with the other services
+# Auth shared with the other services
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
-app.include_router(tests.router, prefix="/tests", tags=["Test"])
 # Code assistant routes
 app.include_router(code_assistant.router, prefix="/code-assistant", tags=["Code Assistant"])
 
