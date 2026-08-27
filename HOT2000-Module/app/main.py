@@ -6,33 +6,52 @@ from pathlib import Path
 import shutil
 
 import pandas as pd
-from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
+from pydantic import BaseModel, Field, field_validator
 
 from .config import (
     DOWNLOADS_DIR,
-    LOGO_URL,
+    FRONTEND_URL,
     MANIFEST_PATH,
     REPRESENTATIVES_DIR,
     RESULTS_PATH,
-    WORKSPACE_URL,
 )
 from .prediction import predict_cluster
 
 
-TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-
-app = FastAPI(title="HOT2000 File Selection")
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+app = FastAPI(title="HOT2000 Representative Model API", version="1.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://main.d2hvpyy9rpvb37.amplifyapp.com",
+        "http://localhost:8080",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _shell_context() -> dict:
-    return {"workspace_url": WORKSPACE_URL, "logo_url": LOGO_URL}
+class BuildingInput(BaseModel):
+    houseregion: str = Field(min_length=1)
+    clientpcode: str = Field(min_length=3, max_length=7)
+    typeofhouse: str = Field(min_length=1)
+    storeys: str = Field(min_length=1)
+    footprint: float = Field(gt=0)
+    fndtype: str = Field(min_length=1)
+    furnacefuel: str = Field(min_length=1)
+    furnacetype: str = Field(min_length=1)
+    pdhwfuel: str = Field(min_length=1)
+    pdhwtype: str = Field(min_length=1)
+    aircondtype: str = Field(min_length=1)
+
+    @field_validator("clientpcode")
+    @classmethod
+    def normalize_postal_code(cls, value: str) -> str:
+        return value.strip().upper()[:3]
 
 
 @app.get("/health")
@@ -204,75 +223,43 @@ def _download_path(filename: str) -> Path:
     return DOWNLOADS_DIR / filename
 
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    _cleanup_downloads()
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context=_shell_context(),
-    )
+@app.get("/", include_in_schema=False)
+def home():
+    return RedirectResponse(FRONTEND_URL, status_code=307)
 
 
-@app.post("/predict")
-def predict(
-    houseregion: str = Form(...),
-    clientpcode: str = Form(...),
-    typeofhouse: str = Form(...),
-    storeys: str = Form(...),
-    footprint: float = Form(...),
-    fndtype: str = Form(...),
-    furnacefuel: str = Form(...),
-    furnacetype: str = Form(...),
-    pdhwfuel: str = Form(...),
-    pdhwtype: str = Form(...),
-    aircondtype: str = Form(...),
-):
+@app.post("/api/predict")
+def predict(building: BuildingInput):
     _cleanup_downloads()
     building_data = {
-        "HOUSEREGION": houseregion,
-        "CLIENTPCODE": clientpcode.strip().upper()[:3],
-        "TYPEOFHOUSE": typeofhouse,
-        "STOREYS": storeys,
-        "FOOTPRINT": footprint,
-        "FNDTYPE": fndtype,
-        "FURNACEFUEL": furnacefuel,
-        "FURNACETYPE": furnacetype,
-        "PDHWFUEL": pdhwfuel,
-        "PDHWTYPE": pdhwtype,
-        "AIRCONDTYPE": aircondtype,
+        "HOUSEREGION": building.houseregion,
+        "CLIENTPCODE": building.clientpcode,
+        "TYPEOFHOUSE": building.typeofhouse,
+        "STOREYS": building.storeys,
+        "FOOTPRINT": building.footprint,
+        "FNDTYPE": building.fndtype,
+        "FURNACEFUEL": building.furnacefuel,
+        "FURNACETYPE": building.furnacetype,
+        "PDHWFUEL": building.pdhwfuel,
+        "PDHWTYPE": building.pdhwtype,
+        "AIRCONDTYPE": building.aircondtype,
     }
 
     try:
         cluster = predict_cluster(building_data)
         source_path = _representative_for_cluster(cluster)
-        _results_context(cluster)
+        result_context = _results_context(cluster)
     except (FileNotFoundError, ValueError) as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
 
     filename = f"house_{datetime.now():%Y%m%d_%H%M%S}{source_path.suffix.lower()}"
     shutil.copy2(source_path, _download_path(filename))
-    return RedirectResponse(
-        url=f"/results/{cluster}/{filename}", status_code=303
-    )
-
-
-@app.get("/results/{cluster}/{filename}", response_class=HTMLResponse)
-async def results(request: Request, cluster: int, filename: str):
-    file_path = _download_path(filename)
-    if not file_path.is_file():
-        raise HTTPException(status_code=404, detail="Download not found")
-
-    try:
-        result_context = _results_context(cluster)
-    except FileNotFoundError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-
-    return templates.TemplateResponse(
-        request=request,
-        name="download.html",
-        context={"filename": filename, **result_context, **_shell_context()},
-    )
+    return {
+        "cluster": cluster,
+        "filename": filename,
+        "download_path": f"/download_file/{filename}",
+        **result_context,
+    }
 
 
 @app.get("/download_file/{filename}")

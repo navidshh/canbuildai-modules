@@ -18,11 +18,7 @@ RESULTS_PATH = Path(
 DOWNLOADS_DIR = Path(
     os.getenv("HOT2000_DOWNLOADS_DIR", MODULE_ROOT / "runtime" / "downloads")
 )
-WORKSPACE_URL = os.getenv(
-    "CANBEM_WORKSPACE_URL",
-    "https://main.d2hvpyy9rpvb37.amplifyapp.com/hub.html",
-)
-LOGO_URL = os.getenv(
-    "CANBEM_LOGO_URL",
-    "https://main.d2hvpyy9rpvb37.amplifyapp.com/Logo_New.png",
+FRONTEND_URL = os.getenv(
+    "HOT2000_FRONTEND_URL",
+    "https://main.d2hvpyy9rpvb37.amplifyapp.com/residential-model.html",
 )
