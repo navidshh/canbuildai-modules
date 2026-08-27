@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Cluster Prediction</title>
+    <style>
+        :root {
+            --ink: #17221d;
+            --muted: #5b6962;
+            --line: #d9e0dc;
+            --paper: #ffffff;
+            --canvas: #f1f3ef;
+            --green: #176747;
+            --green-dark: #0e4a33;
+            --gold: #d8a52e;
+            --focus: rgba(23, 103, 71, 0.16);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            color: var(--ink);
+            background:
+                linear-gradient(90deg, rgba(23, 103, 71, 0.04) 1px, transparent 1px),
+                linear-gradient(rgba(23, 103, 71, 0.04) 1px, transparent 1px),
+                var(--canvas);
+            background-size: 32px 32px;
+            min-height: 100vh;
+            font-family: Georgia, "Times New Roman", serif;
+        }
+
+        .masthead {
+            padding: 18px 24px;
+            color: #fff;
+            background: var(--green-dark);
+            border-bottom: 4px solid var(--gold);
+        }
+
+        .masthead-inner,
+        main {
+            width: min(1080px, calc(100% - 40px));
+            margin: 0 auto;
+        }
+
+        .brand {
+            font-family: "Trebuchet MS", sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        main {
+            padding: 44px 0 64px;
+        }
+
+        .container {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            box-shadow: 0 14px 36px rgba(23, 34, 29, 0.08);
+            overflow: hidden;
+        }
+
+        .form-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.7fr);
+            gap: 36px;
+            align-items: end;
+            padding: 34px 40px 30px;
+            background: #f8faf8;
+            border-bottom: 1px solid var(--line);
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 42px;
+            font-weight: 400;
+            line-height: 1.08;
+            letter-spacing: 0;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-family: "Trebuchet MS", sans-serif;
+            font-size: 15px;
+            line-height: 1.55;
+        }
+
+        .form-note {
+            padding-left: 22px;
+            color: var(--muted);
+            border-left: 3px solid var(--gold);
+            font-family: "Trebuchet MS", sans-serif;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        form {
+            padding: 34px 40px 40px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-family: "Trebuchet MS", sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        input, select {
+            width: 100%;
+            min-height: 46px;
+            padding: 10px 12px;
+            color: var(--ink);
+            background: #fff;
+            border: 1px solid #bfc9c3;
+            border-radius: 4px;
+            font-family: "Trebuchet MS", sans-serif;
+            font-size: 14px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--green);
+            box-shadow: 0 0 0 3px var(--focus);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+
+        button {
+            min-height: 50px;
+            padding: 12px 24px;
+            background: var(--green);
+            color: white;
+            border: 1px solid var(--green);
+            border-radius: 4px;
+            font-family: "Trebuchet MS", sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-top: 4px;
+        }
+
+        button:hover {
+            background: var(--green-dark);
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 6px;
+            font-family: "Trebuchet MS", sans-serif;
+            line-height: 1.45;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 720px) {
+            .masthead-inner,
+            main {
+                width: min(100% - 28px, 1080px);
+            }
+
+            main {
+                padding-top: 28px;
+            }
+
+            .form-header,
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .form-header {
+                gap: 20px;
+                padding: 28px 22px 24px;
+            }
+
+            h1 {
+                font-size: 34px;
+            }
+
+            form {
+                padding: 28px 22px 32px;
+            }
+
+            .form-row {
+                gap: 0;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+    <script>
+        function toggleOtherInput(selectId, inputId) {
+            const select = document.getElementById(selectId);
+            const input = document.getElementById(inputId);
+
+            if (select.value === 'Other') {
+                input.classList.remove('hidden');
+                input.required = true;
+                select.required = false;
+            } else {
+                input.classList.add('hidden');
+                input.required = false;
+                select.required = true;
+            }
+        }
+
+        function getFieldValue(selectId, inputId) {
+            const select = document.getElementById(selectId);
+            const input = document.getElementById(inputId);
+
+            if (select.value === 'Other') {
+                return input.value;
+            }
+            return select.value;
+        }
+
+    </script>
+</head>
+<body>
+    <header class="masthead">
+        <div class="masthead-inner">
+            <p class="brand">HOT2000 Representative Tool</p>
+        </div>
+    </header>
+
+    <main>
+    <div class="container">
+        <div class="form-header">
+            <div>
+                <h1>Find a representative HOT2000 building</h1>
+                <p class="subtitle">Enter the building characteristics to match a modelled representative and review its energy results.</p>
+            </div>
+            <p class="form-note">All fields are required. Postal codes are limited to the first three characters.</p>
+        </div>
+
+        <form action="/predict" method="post">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="houseregion">House Region *</label>
+                    <select id="houseregion" name="houseregion" required>
+                        <option value="">Select Province/Territory</option>
+                        <option value="Alberta">Alberta</option>
+                        <option value="British Columbia">British Columbia</option>
+                        <option value="Manitoba">Manitoba</option>
+                        <option value="New Brunswick">New Brunswick</option>
+                        <option value="Newfoundland and Labrador">Newfoundland and Labrador</option>
+                        <option value="Northwest Territories">Northwest Territories</option>
+                        <option value="Nova Scotia">Nova Scotia</option>
+                        <option value="Nunavut">Nunavut</option>
+                        <option value="Ontario">Ontario</option>
+                        <option value="Prince Edward Island">Prince Edward Island</option>
+                        <option value="Quebec">Quebec</option>
+                        <option value="Saskatchewan">Saskatchewan</option>
+                        <option value="Yukon">Yukon</option>
+                    </select>
+                    <p class="help-text">Province or territory</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="clientpcode">Client Postal Code *</label>
+                    <input type="text" id="clientpcode" name="clientpcode" required
+                           placeholder="e.g., N1H, V5X">
+                    <p class="help-text">First 3 characters</p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="typeofhouse">Type of House *</label>
+                    <select id="typeofhouse" name="typeofhouse" required onchange="toggleOtherInput('typeofhouse', 'typeofhouse_other')">
+                        <option value="">Select Type</option>
+                        <option value="Single Detached">Single Detached</option>
+                        <option value="Double/Semi-detached">Double/Semi-detached</option>
+                        <option value="Row house, end unit">Row house, end unit</option>
+                        <option value="Row house, middle unit">Row house, middle unit</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="typeofhouse_other" class="hidden"
+                           placeholder="Enter custom type" style="margin-top: 5px;">
+                    <p class="help-text">Type of dwelling</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="storeys">Number of Storeys *</label>
+                    <select id="storeys" name="storeys" required onchange="toggleOtherInput('storeys', 'storeys_other')">
+                        <option value="">Select Storeys</option>
+                        <option value="One storey">One storey</option>
+                        <option value="One and a half">One and a half</option>
+                        <option value="Two storeys">Two storeys</option>
+                        <option value="Two and a half">Two and a half</option>
+                        <option value="Three storeys">Three storeys</option>
+                        <option value="Split level">Split level</option>
+                        <option value="Split entry/Raised base.">Split entry/Raised base.</option>
+                        <option value="Split entry / Raised basement">Split entry / Raised basement</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="storeys_other" class="hidden"
+                           placeholder="Enter custom storey type" style="margin-top: 5px;">
+                    <p class="help-text">Number of floors above grade (if buildingtype = Multi-unit: one unit assessed, this field refers to the number of floors above grade for the unit)</p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="footprint">Footprint (m²) *</label>
+                    <input type="number" step="0.01" id="footprint" name="footprint" required
+                           placeholder="e.g., 79.5">
+                    <p class="help-text">Sum of the areas of all foundations and exposed floors (square metres)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="fndtype">Foundation Type *</label>
+                    <input type="text" id="fndtype" name="fndtype" required
+                           placeholder="e.g., B1 or B1;B2">
+                    <p class="help-text">Type of foundation (B = Basement wall, P= Pony wall, C = crawl space, S = slab on grade, F = Floor above crawl space). Use semicolon for multiple types</p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="furnacefuel">Furnace Fuel *</label>
+                    <select id="furnacefuel" name="furnacefuel" required onchange="toggleOtherInput('furnacefuel', 'furnacefuel_other')">
+                        <option value="">Select Fuel Type</option>
+                        <option value="Natural Gas">Natural Gas</option>
+                        <option value="Electricity">Electricity</option>
+                        <option value="Oil">Oil</option>
+                        <option value="Propane">Propane</option>
+                        <option value="Mixed Wood">Mixed Wood</option>
+                        <option value="Hardwood">Hardwood</option>
+                        <option value="Wood Pellets">Wood Pellets</option>
+                        <option value="Softwood">Softwood</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="furnacefuel_other" class="hidden"
+                           placeholder="Enter custom fuel type" style="margin-top: 5px;">
+                    <p class="help-text">Primary heating equipment fuel type</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="furnacetype">Furnace Type *</label>
+                    <select id="furnacetype" name="furnacetype" required onchange="toggleOtherInput('furnacetype', 'furnacetype_other')">
+                        <option value="">Select Furnace Type</option>
+                        <option value="Condensing furnace">Condensing furnace</option>
+                        <option value="Baseboard/Hydronic/Plenum(duct) htrs.">Baseboard/Hydronic/Plenum(duct) htrs.</option>
+                        <option value="Furnace with continuous pilot">Furnace with continuous pilot</option>
+                        <option value="Induced draft fan furnace">Induced draft fan furnace</option>
+                        <option value="Electric furnace">Electric furnace</option>
+                        <option value="Furnace with flame retention head">Furnace with flame retention head</option>
+                        <option value="Forced air furnace">Forced air furnace</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="furnacetype_other" class="hidden"
+                           placeholder="Enter custom furnace type" style="margin-top: 5px;">
+                    <p class="help-text">Primary heating equipment type</p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="pdhwfuel">PDHW Fuel *</label>
+                    <select id="pdhwfuel" name="pdhwfuel" required onchange="toggleOtherInput('pdhwfuel', 'pdhwfuel_other')">
+                        <option value="">Select Fuel Type</option>
+                        <option value="Natural Gas">Natural Gas</option>
+                        <option value="Electricity">Electricity</option>
+                        <option value="Oil">Oil</option>
+                        <option value="Propane">Propane</option>
+                        <option value="Solar">Solar</option>
+                        <option value="Mixed Wood">Mixed Wood</option>
+                        <option value="Hardwood">Hardwood</option>
+                        <option value="Wood Pellets">Wood Pellets</option>
+                        <option value="Softwood">Softwood</option>
+                        <option value="Not applicable">Not applicable</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="pdhwfuel_other" class="hidden"
+                           placeholder="Enter custom fuel type" style="margin-top: 5px;">
+                    <p class="help-text">Primary domestic hot water equipment fuel type</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="pdhwtype">PDHW Type *</label>
+                    <select id="pdhwtype" name="pdhwtype" required onchange="toggleOtherInput('pdhwtype', 'pdhwtype_other')">
+                        <option value="">Select PDHW Type</option>
+                        <option value="Conventional tank">Conventional tank</option>
+                        <option value="Conventional tank (pilot)">Conventional tank (pilot)</option>
+                        <option value="Conserver tank">Conserver tank</option>
+                        <option value="Induced draft fan">Induced draft fan</option>
+                        <option value="Instantaneous (condensing)">Instantaneous (condensing)</option>
+                        <option value="Induced draft fan (pilot)">Induced draft fan (pilot)</option>
+                        <option value="Instantaneous">Instantaneous</option>
+                        <option value="Direct vent (sealed)">Direct vent (sealed)</option>
+                        <option value="Tankless coil">Tankless coil</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="pdhwtype_other" class="hidden"
+                           placeholder="Enter custom PDHW type" style="margin-top: 5px;">
+                    <p class="help-text">Primary domestic hot water equipment type</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="aircondtype">Air Conditioning Type *</label>
+                <select id="aircondtype" name="aircondtype" required onchange="toggleOtherInput('aircondtype', 'aircondtype_other')">
+                    <option value="">Select A/C Type</option>
+                    <option value="Central split system">Central split system</option>
+                    <option value="Central single package system">Central single package system</option>
+                    <option value="Ductless Mini- or Multi-split system">Ductless Mini- or Multi-split system</option>
+                    <option value="Compact Ducted Mini- or Multi-split system">Compact Ducted Mini- or Multi-split system</option>
+                    <option value="Coils Only">Coils Only</option>
+                    <option value="Not installed">Not installed</option>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="text" id="aircondtype_other" class="hidden"
+                       placeholder="Enter custom A/C type" style="margin-top: 5px;">
+                <p class="help-text">Type of Central A/C System</p>
+            </div>
+
+            <button type="submit">View representative results</button>
+        </form>
+    </div>
+    </main>
+
+    <script>
+        // Handle form submission to use custom values when "Other" is selected
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const fields = ['typeofhouse', 'storeys', 'furnacefuel', 'furnacetype', 'pdhwfuel', 'pdhwtype', 'aircondtype'];
+
+            fields.forEach(field => {
+                const select = document.getElementById(field);
+                const other = document.getElementById(field + '_other');
+
+                if (select.value === 'Other' && other.value) {
+                    // Create a hidden input with the custom value
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = field;
+                    hidden.value = other.value;
+                    this.appendChild(hidden);
+
+                    // Disable the select so it doesn't submit
+                    select.disabled = true;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

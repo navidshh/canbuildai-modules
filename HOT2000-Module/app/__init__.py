@@ -1,0 +1,1 @@
+"""Standalone HOT2000 inference application."""

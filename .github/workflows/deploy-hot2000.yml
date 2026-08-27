@@ -1,0 +1,107 @@
+name: Build and Deploy HOT2000 Module
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. v1.0.1)"
+        required: true
+  push:
+    tags:
+      - 'hot2000-v*.*.*'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Determine image tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.version }}"
+          else
+            TAG="${{ github.ref_name }}"
+            TAG="${TAG#hot2000-v}"
+          fi
+          echo "value=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push HOT2000 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.hot2000
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/hot2000-app:${{ steps.tag.outputs.value }}
+            ${{ steps.ecr.outputs.registry }}/hot2000-app:latest
+          cache-from: type=gha,scope=hot2000
+          cache-to: type=gha,mode=max,scope=hot2000
+
+      - name: Deploy HOT2000 service
+        env:
+          CLUSTER_NAME: hot2000-dev-cluster
+          SERVICE_NAME: hot2000-dev-service
+          TASK_FAMILY: hot2000-dev-task
+          IMAGE_REPOSITORY: ${{ steps.ecr.outputs.registry }}/hot2000-app
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+        shell: bash
+        run: |
+          IMAGE_DIGEST=$(aws ecr describe-images \
+            --repository-name hot2000-app \
+            --image-ids imageTag="$IMAGE_TAG" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          IMAGE_URI="${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
+
+          aws ecs describe-task-definition --task-definition "$TASK_FAMILY" > task-definition.json
+
+          jq --arg IMAGE_URI "$IMAGE_URI" '
+            .taskDefinition
+            | .containerDefinitions[0].image = $IMAGE_URI
+            | del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy,
+                .tags
+              )
+          ' task-definition.json > new-task-definition.json
+
+          TASK_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://new-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          aws ecs update-service \
+            --cluster "$CLUSTER_NAME" \
+            --service "$SERVICE_NAME" \
+            --task-definition "$TASK_ARN" \
+            --desired-count 1 \
+            --force-new-deployment
+
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME"
