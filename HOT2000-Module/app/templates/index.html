@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Building Cluster Prediction</title>
+    <title>CanBEM-AI: Residential Energy Model Generator</title>
     <style>
         :root {
             --ink: #17221d;
@@ -209,6 +209,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="/static/hot2000-shell.css">
     <script>
         function toggleOtherInput(selectId, inputId) {
             const select = document.getElementById(selectId);
@@ -238,9 +239,25 @@
     </script>
 </head>
 <body>
-    <header class="masthead">
-        <div class="masthead-inner">
-            <p class="brand">HOT2000 Representative Tool</p>
+    <header class="module-app-header">
+        <div class="module-header-inner">
+            <div class="module-identity">
+                <a class="module-brand" href="{{ workspace_url }}" aria-label="CanBEM-AI workspace">
+                    <img src="{{ logo_url }}" alt="">
+                    <span class="module-brand-name">CanBEM-AI<sup class="trademark" aria-label="trademark">TM</sup></span>
+                </a>
+                <span class="module-divider" aria-hidden="true"></span>
+                <div class="module-title-block">
+                    <span class="module-category">Residential buildings</span>
+                    <p>Residential Energy Model Generator</p>
+                </div>
+            </div>
+            <div class="module-account-actions">
+                <a href="{{ workspace_url }}" class="module-action" title="Back to hub">
+                    <i data-lucide="layout-grid" aria-hidden="true"></i>
+                    <span class="module-action-label">Back to hub</span>
+                </a>
+            </div>
         </div>
     </header>
 
@@ -441,7 +458,16 @@
     </div>
     </main>
 
+    <footer class="module-footer">
+        <p>&copy; 2026 CanBEM-AI - Residential Energy Model Generator</p>
+    </footer>
+
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script>
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
         // Handle form submission to use custom values when "Other" is selected
         document.querySelector('form').addEventListener('submit', function(e) {
             const fields = ['typeofhouse', 'storeys', 'furnacefuel', 'furnacetype', 'pdhwfuel', 'pdhwtype', 'aircondtype'];

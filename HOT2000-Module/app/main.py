@@ -8,22 +8,31 @@ import shutil
 import pandas as pd
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .config import (
     DOWNLOADS_DIR,
+    LOGO_URL,
     MANIFEST_PATH,
     REPRESENTATIVES_DIR,
     RESULTS_PATH,
+    WORKSPACE_URL,
 )
 from .prediction import predict_cluster
 
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(title="HOT2000 File Selection")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _shell_context() -> dict:
+    return {"workspace_url": WORKSPACE_URL, "logo_url": LOGO_URL}
 
 
 @app.get("/health")
@@ -198,7 +207,11 @@ def _download_path(filename: str) -> Path:
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     _cleanup_downloads()
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context=_shell_context(),
+    )
 
 
 @app.post("/predict")
@@ -258,7 +271,7 @@ async def results(request: Request, cluster: int, filename: str):
     return templates.TemplateResponse(
         request=request,
         name="download.html",
-        context={"filename": filename, **result_context},
+        context={"filename": filename, **result_context, **_shell_context()},
     )
 
 
