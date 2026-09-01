@@ -46,6 +46,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push HOT2000 image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -66,12 +67,7 @@ jobs:
           IMAGE_TAG: ${{ steps.tag.outputs.value }}
         shell: bash
         run: |
-          IMAGE_DIGEST=$(aws ecr describe-images \
-            --repository-name hot2000-app \
-            --image-ids imageTag="$IMAGE_TAG" \
-            --query 'imageDetails[0].imageDigest' \
-            --output text)
-          IMAGE_URI="${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
+          IMAGE_URI="${IMAGE_REPOSITORY}@${{ steps.build.outputs.digest }}"
 
           aws ecs describe-task-definition --task-definition "$TASK_FAMILY" > task-definition.json
 
