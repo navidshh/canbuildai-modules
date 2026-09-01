@@ -142,12 +142,13 @@ def _representative_for_cluster(cluster: int) -> Path:
     return source_path
 
 
-def _metric(row, column, label, unit, decimals=1):
+def _metric(row, column, label, unit, decimals=1, use_grouping=True):
     value = row[column]
     available = not pd.isna(value)
+    number_format = f",.{decimals}f" if use_grouping else f".{decimals}f"
     return {
         "label": label,
-        "value": f"{value:,.{decimals}f}" if available else "Not available",
+        "value": format(value, number_format) if available else "Not available",
         "unit": unit if available else "",
         "available": available,
     }
@@ -173,7 +174,7 @@ def _results_context(cluster: int) -> dict:
         ],
         "building_metrics": [
             _metric(row, "floor_area_m2", "Modelled floor area", "m²"),
-            _metric(row, "year_built", "Year built", "", 0),
+            _metric(row, "year_built", "Year built", "", 0, use_grouping=False),
             _metric(
                 row,
                 "air_leakage_ach_50pa",
