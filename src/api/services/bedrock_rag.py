@@ -25,20 +25,6 @@ from code_compliance.retriever.s3_sync import download_bundles
 logger = logging.getLogger(__name__)
 
 # --- Model configuration (all overridable via env) ------------------------------------
-# Mistral Large (24.02) is the default because it is the strongest model with
-# confirmed on-demand access in ca-central-1 for AWS account 834599497928:
-#   - Amazon Nova family is NOT offered in ca-central-1.
-#   - Anthropic Claude 3 models are listed but blocked by AWS Marketplace subscription.
-#   - Mistral Large gives the cleanest Converse output (no chat-template leakage) and
-#     the strongest instruction-following of the accessible options -> best for strict
-#     citation-only RAG answers on bilingual (EN/FR) NECB text.
-#
-# Verified alternatives in ca-central-1 (drop in via BEDROCK_MODEL_ID env var):
-#   mistral.mistral-large-2402-v1:0    - default; strongest instruction-following
-#   meta.llama3-70b-instruct-v1:0      - strong reasoning; may need stop-seq tuning
-#   mistral.mixtral-8x7b-instruct-v0:1 - mid-tier fallback
-#   meta.llama3-8b-instruct-v1:0       - fast/cheap fallback
-#   mistral.mistral-7b-instruct-v0:2   - smallest fallback
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "mistral.mistral-large-2402-v1:0")
 BEDROCK_EMBED_MODEL_ID = os.getenv("BEDROCK_EMBED_MODEL_ID", "amazon.titan-embed-text-v2:0")
 BEDROCK_EMBED_DIM = int(os.getenv("BEDROCK_EMBED_DIM", "1024"))
@@ -56,7 +42,8 @@ Rules you MUST follow:
 4. Prefer the most recent code edition when the user has selected more than one and they differ. Point out the difference and cite both. Never mix requirements from different codes (NECB vs NBC) without saying which code you are citing.
 5. Do NOT invent section numbers, table numbers, or page numbers. If they are not in the context, do not fabricate them.
 6. Keep answers concise, structured, and practitioner-oriented. Use bullet points for lists of requirements and Markdown tables when comparing several values.
-7. Format any mathematical formulas using LaTeX delimiters so they render nicely: use $...$ for inline math (e.g. $U = 1/R$) and $$...$$ for display math on its own line. Prefer LaTeX for equations, exponents, subscripts, fractions and units with superscripts (e.g. $\\mathrm{W/(m^2 \\cdot K)}$). Plain prose values (e.g. "0.290 W/(m²·K)") do not need LaTeX.
+7. When asked for a table, state its exact table number and code edition from the context. Render the relevant rows as a readable Markdown table with explicit column headers and units. Include applicable notes from the context; if referenced notes are missing, say so. Never infer missing cell values or silently combine editions.
+8. Format any mathematical formulas using LaTeX delimiters so they render nicely: use $...$ for inline math (e.g. $U = 1/R$) and $$...$$ for display math on its own line. Prefer LaTeX for equations, exponents, subscripts, fractions and units with superscripts (e.g. $\\mathrm{W/(m^2 \\cdot K)}$). Plain prose values (e.g. "0.290 W/(m²·K)") do not need LaTeX.
 """
 
 
@@ -145,7 +132,7 @@ class CodeAssistantService:
             raise RuntimeError("Code assistant is not ready (no indexes loaded)")
         codes = [c for c in selected_codes if c in self.store.available_codes()] or self.store.available_codes()
         vec = self._embed_query(question)
-        return self.store.search(vec, codes=codes, top_k=top_k)
+        return self.store.search(vec, codes=codes, top_k=top_k, question=question)
 
     # ---------------------------------------------------------------- generation
     def _build_messages(

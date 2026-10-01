@@ -23,7 +23,11 @@ knowledge base.
 ```
 
 - **Retrieval:** self-managed FAISS (`faiss-cpu`) — inner-product over L2-normalised
-  Titan embeddings. Indexes are pre-built offline (per code) and uploaded to S3.
+   Titan embeddings combined with BM25 keyword rankings using reciprocal-rank fusion.
+   Explicit table numbers are prioritized; table requests favor structured tables,
+   and matching row chunks are expanded to their full table to retain column headers.
+   Retrieval scores are ranking scores, not confidence probabilities.
+   Indexes are pre-built offline (per code) and uploaded to S3.
   On boot, the ECS task downloads the bundles and loads them into memory.
 - **Generation:** AWS Bedrock `Converse`/`ConverseStream`. Default model is
   `mistral.mistral-large-2402-v1:0` (strongest LLM with confirmed access in
@@ -162,8 +166,32 @@ Verified accessible on-demand in `ca-central-1` (account 834599497928):
 | `meta.llama3-8b-instruct-v1:0` | Fast / cheap fallback |
 | `mistral.mistral-7b-instruct-v0:2` | Smallest fallback |
 
-**Not available in `ca-central-1` for this account** (would require region change or Marketplace approval):
-`amazon.nova-*` (not offered in region), `anthropic.claude-*` (Marketplace subscription blocked).
+**Model access check (2026-10-01):** the running ECS service still uses
+Mistral Large. A direct Claude 3 Sonnet invocation in `ca-central-1` was denied
+because of private Marketplace eligibility. `ca.amazon.nova-lite-v1:0` exists
+and routes only to `ca-central-1` and `ca-west-1`, but invocation was denied by
+an organization SCP on its `ca-west-1` model resource. Newer Claude and OpenAI
+models are listed through US/global profiles. US inference has been approved by
+the project owner, but test invocations of `us.anthropic.claude-sonnet-4-6`,
+`us.anthropic.claude-opus-4-6-v1`, and `us.openai.gpt-5.4` were explicitly denied
+by organization SCP `p-m9mnbpri` on their `us-east-1` model resources. An AWS
+organization administrator must resolve the applicable policy restriction before
+switching to these profiles; Marketplace eligibility may also need approval.
+US routing sends user questions and conversation context as well as retrieved
+public code excerpts outside Canada. Catalog `ACTIVE` status is not proof of
+invocation access. No stronger replacement has passed an invocation test yet.
+
+The table-retrieval fix requires an application image rebuild/deployment, not an
+index rebuild, when bundles already contain `table` and `table_row` metadata.
+Both deployed NECB bundles were verified to contain Table 3.2.2.2 with wall values
+and climate-zone headers. Bundles built with text-only extraction still require
+table-aware re-ingestion.
+
+Run retrieval regression tests from `surrogate-app/Code-Compliance`:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## API endpoints
 

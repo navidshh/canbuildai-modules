@@ -12,13 +12,39 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np
+from rank_bm25 import BM25Okapi
 
 logger = logging.getLogger(__name__)
+
+_TABLE_NUMBER_RE = re.compile(
+    r"\btable\s+([A-Z]?\d+(?:\.\d+)*(?:\.?-[A-Z])?)", re.IGNORECASE
+)
+_STOP_WORDS = set(
+    "a an and are as at be by can code could deals do does for from how i in is it "
+    "me necb nbc of on or please required requirements show table tables that the "
+    "their them there these this to under using was what which with would you".split()
+)
+_TERM_ALIASES = {
+    "walls": "wall", "roofs": "roof", "floors": "floor",
+    "conductance": "transmittance", "conductances": "transmittance",
+    "uvalue": "transmittance", "uvalues": "transmittance",
+}
+
+
+def _search_tokens(text: str) -> List[str]:
+    text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
+    text = re.sub(r"\bu[ -]values?\b", "transmittance", text, flags=re.IGNORECASE)
+    return [
+        _TERM_ALIASES.get(token, token)
+        for token in re.findall(r"[^\W_]+", text.lower())
+        if token not in _STOP_WORDS
+    ]
 
 
 @dataclass
@@ -62,6 +88,12 @@ class _CodeIndex:
     faiss_index: object   # faiss.Index
     metadata: List[dict]  # aligned to FAISS rows
     manifest: dict
+    lexical_index: Optional[BM25Okapi] = field(init=False, default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        corpus = [_search_tokens(metadata["text"]) for metadata in self.metadata]
+        if any(corpus):
+            self.lexical_index = BM25Okapi(corpus)
 
 
 @dataclass
@@ -111,8 +143,13 @@ class FaissStore:
         query_vec: np.ndarray,
         codes: Sequence[str],
         top_k: int = 6,
+        question: str = "",
     ) -> List[RetrievedChunk]:
-        """Search the requested code indexes and return merged top-k results."""
+        """Merge semantic and exact-table hits, preserving full table headers."""
+        if top_k <= 0:
+            return []
+        table_numbers = {number.upper() for number in _TABLE_NUMBER_RE.findall(question)}
+        wants_table = bool(re.search(r"\btables?\b", question, re.IGNORECASE))
         if query_vec.ndim == 1:
             query_vec = query_vec.reshape(1, -1)
 
@@ -122,22 +159,61 @@ class FaissStore:
             if idx is None:
                 logger.debug("Requested code_id %s not loaded; skipping", code_id)
                 continue
-            k = min(top_k, idx.faiss_index.ntotal)
+            k = min(max(top_k * 4, 24), idx.faiss_index.ntotal)
             if k == 0:
                 continue
             scores, ids = idx.faiss_index.search(query_vec.astype("float32"), k)
-            for score, row in zip(scores[0].tolist(), ids[0].tolist()):
+            candidates = {
+                row: 1.0 / (60 + rank)
+                for rank, row in enumerate(ids[0].tolist(), start=1)
+            }
+            tokens = _search_tokens(question)
+            if tokens and idx.lexical_index is not None:
+                lexical_scores = idx.lexical_index.get_scores(tokens)
+                if wants_table:
+                    table_scores = np.array([
+                        score if metadata.get("chunk_type") == "table" else 0.0
+                        for score, metadata in zip(lexical_scores, idx.metadata)
+                    ])
+                    if np.any(table_scores > 0):
+                        lexical_scores = table_scores
+                ranked_rows = np.argsort(-lexical_scores, kind="stable")[:k]
+                for rank, row in enumerate(ranked_rows.tolist(), start=1):
+                    if lexical_scores[row] > 0:
+                        weight = 2.0 if wants_table else 1.0
+                        candidates[row] = candidates.get(row, 0.0) + weight / (60 + rank)
+            table_rows: dict[tuple, int] = {}
+            for row, metadata in enumerate(idx.metadata):
+                if metadata.get("chunk_type") != "table":
+                    continue
+                caption = metadata.get("table_caption") or ""
+                if caption:
+                    table_rows[(metadata.get("page"), caption)] = row
+                numbers = {number.upper() for number in _TABLE_NUMBER_RE.findall(caption)}
+                if table_numbers & numbers:
+                    candidates[row] = 2.0
+
+            promoted: dict[int, float] = {}
+            for row, score in candidates.items():
                 if row < 0 or row >= len(idx.metadata):
                     continue
-                m = idx.metadata[row]
+                metadata = idx.metadata[row]
+                if metadata.get("chunk_type") == "table_row":
+                    row = table_rows.get(
+                        (metadata.get("page"), metadata.get("table_caption")), row
+                    )
+                promoted[row] = max(score, promoted.get(row, float("-inf")))
+
+            for row, score in promoted.items():
+                metadata = idx.metadata[row]
                 all_hits.append(RetrievedChunk(
-                    text=m["text"],
-                    page=int(m.get("page", 0)),
-                    section=m.get("section"),
-                    section_title=m.get("section_title"),
-                    part=m.get("part"),
-                    source_id=m.get("source_id", code_id),
-                    source_label=m.get("source_label", idx.label),
+                    text=metadata["text"],
+                    page=int(metadata.get("page", 0)),
+                    section=metadata.get("section"),
+                    section_title=metadata.get("section_title"),
+                    part=metadata.get("part"),
+                    source_id=metadata.get("source_id", code_id),
+                    source_label=metadata.get("source_label", idx.label),
                     score=float(score),
                 ))
         all_hits.sort(key=lambda h: h.score, reverse=True)
