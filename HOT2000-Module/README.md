@@ -1,9 +1,13 @@
 # HOT2000 Module
 
 Self-contained inference application for selecting one representative HOT2000
-file from 11 building characteristics. This folder contains only serving-time
+file from 10 building characteristics. This folder contains only serving-time
 code and artifacts; training, preprocessing, evaluation, and plotting outputs
 are intentionally excluded.
+
+Foundation type is not an API input or matching feature. Inference supplies an
+empty value internally for the saved pipeline's legacy foundation encoder; the
+downstream transformer drops all foundation-derived columns.
 
 ## Structure
 
@@ -38,6 +42,17 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 Optional environment variables `HOT2000_MODEL_DIR`, `HOT2000_H2K_DIR`,
 `HOT2000_H2K_MANIFEST`, `HOT2000_RESULTS_PATH`, and
 `HOT2000_DOWNLOADS_DIR` override the local paths.
+
+## Tests
+
+From this folder, after installing the runtime dependencies:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+The tests verify the ten-input API contract, representative downloads, and
+unchanged predictions using the fitted model artifacts.
 
 ## Representative results
 

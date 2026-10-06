@@ -26,10 +26,9 @@ def load_artifacts(model_dir=None):
 
 
 def predict_cluster(input_data: dict, model_dir=None) -> int:
-    """Return the nearest model cluster for one building description."""
+    """Return the nearest cluster, supplying the legacy encoder's unused input."""
     preprocessor, cluster_centers = load_artifacts(model_dir)
-    transformed = preprocessor.transform(pd.DataFrame([input_data])).astype(
-        np.float32
-    )
+    features = pd.DataFrame([{**input_data, "FNDTYPE": ""}])
+    transformed = preprocessor.transform(features).astype(np.float32)
     distances = np.linalg.norm(cluster_centers - transformed, axis=1)
     return int(np.argmin(distances))

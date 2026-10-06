@@ -41,7 +41,6 @@ class BuildingInput(BaseModel):
     typeofhouse: str = Field(min_length=1)
     storeys: str = Field(min_length=1)
     footprint: float = Field(gt=0)
-    fndtype: str = Field(min_length=1)
     furnacefuel: str = Field(min_length=1)
     furnacetype: str = Field(min_length=1)
     pdhwfuel: str = Field(min_length=1)
@@ -238,7 +237,6 @@ def predict(building: BuildingInput):
         "TYPEOFHOUSE": building.typeofhouse,
         "STOREYS": building.storeys,
         "FOOTPRINT": building.footprint,
-        "FNDTYPE": building.fndtype,
         "FURNACEFUEL": building.furnacefuel,
         "FURNACETYPE": building.furnacetype,
         "PDHWFUEL": building.pdhwfuel,
